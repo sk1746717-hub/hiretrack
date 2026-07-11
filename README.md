@@ -118,6 +118,11 @@ EMAIL_PASS=
 - Resume Ranking
 - Notifications
 
+## 🌐 Live Demo
+
+Frontend: https://hiretrack-tawny.vercel.app
+
+Backend API: https://YOUR-RENDER-LINK.onrender.com
 ---
 
 ## 👨‍💻 Author
