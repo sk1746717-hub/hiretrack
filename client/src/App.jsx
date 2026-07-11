@@ -13,6 +13,7 @@ import Interviews from "./pages/Interviews";
 import Tasks from "./pages/Tasks";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import AdminUsers from "./pages/AdminUsers";
 import NotFound from "./pages/NotFound";
 
 const ProtectedLayout = ({ children }) => {
@@ -267,6 +268,16 @@ function App() {
             <ProtectedRoute>
               <ProtectedLayout>
                 <Settings />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute allowedRoles={["Admin"]}>
+              <ProtectedLayout>
+                <AdminUsers />
               </ProtectedLayout>
             </ProtectedRoute>
           }

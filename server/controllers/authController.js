@@ -72,6 +72,10 @@ const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    if (user.status === "Disabled") {
+      return res.status(403).json({ message: "Your account has been disabled. Please contact administrator." });
+    }
+
     res.json({
       message: "Login successful",
       token: generateToken(user._id),

@@ -6,6 +6,7 @@ import authRoutes from "./routes/authRoutes.js";
 import candidateRoutes from "./routes/candidateRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import templateRoutes from "./routes/templateRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 dotenv.config();
 
@@ -22,6 +23,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/candidates", candidateRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/templates", templateRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.get("/", (req, res) => {
   res.send("HireTrack API is running...");
