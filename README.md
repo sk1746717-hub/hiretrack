@@ -20,7 +20,7 @@ A modern AI-powered Applicant Tracking System (ATS) built using the MERN Stack t
 
 # 🌐 Live Demo
 
-> **Live Website:** *(Add after deployment)*
+> **Live Website:** 
 
 ```
 https://hiretrack-tawny.vercel.app/
@@ -31,46 +31,6 @@ https://hiretrack-tawny.vercel.app/
 ```
 https://github.com/sk1746717-hub/hiretrack
 ```
-
----
-
-# 📸 Screenshots
-
-> *(Replace these placeholders with screenshots after deployment.)*
-
-## Dashboard
-
-*(Insert Dashboard Screenshot)*
-
----
-
-## Candidate Management
-
-*(Insert Candidates Page Screenshot)*
-
----
-
-## AI Resume Parsing
-
-*(Insert Resume Parsing Screenshot)*
-
----
-
-## Interview Scheduler
-
-*(Insert Interview Module Screenshot)*
-
----
-
-## Email Outreach
-
-*(Insert Email Outreach Screenshot)*
-
----
-
-## Analytics Dashboard
-
-*(Insert Dashboard Charts Screenshot)*
 
 ---
 
