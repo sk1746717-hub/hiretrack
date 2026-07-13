@@ -32,7 +32,8 @@ const Interviews = () => {
       setLoading(true);
       const data = await candidateService.getCandidates("", "", "", "false", "newest");
       // Filter candidates with scheduled interviews
-      const interviewees = data.filter((c) => c.interviewDate);
+      const safeList = Array.isArray(data) ? data : data?.candidates || [];
+      const interviewees = safeList.filter((c) => c.interviewDate);
       setCandidates(interviewees);
     } catch (error) {
       console.error("Fetch Interviews Error:", error);
@@ -122,7 +123,9 @@ const Interviews = () => {
   // Aggregation counts
   const getUpcomingCount = () => {
     const today = new Date().setHours(0, 0, 0, 0);
-    return candidates.filter((c) => {
+    const safeCandidates = Array.isArray(candidates) ? candidates : [];
+    return safeCandidates.filter((c) => {
+      if (!c.interviewDate) return false;
       const isCompletedOrCancelled = c.interviewStatus === "Completed" || c.interviewStatus === "Cancelled";
       return !isCompletedOrCancelled && new Date(c.interviewDate) >= today;
     }).length;
@@ -130,7 +133,9 @@ const Interviews = () => {
 
   const getTodayCount = () => {
     const todayStr = new Date().toISOString().split("T")[0];
-    return candidates.filter((c) => {
+    const safeCandidates = Array.isArray(candidates) ? candidates : [];
+    return safeCandidates.filter((c) => {
+      if (!c.interviewDate) return false;
       const isCompletedOrCancelled = c.interviewStatus === "Completed" || c.interviewStatus === "Cancelled";
       if (isCompletedOrCancelled) return false;
       const cDateStr = new Date(c.interviewDate).toISOString().split("T")[0];
@@ -139,14 +144,17 @@ const Interviews = () => {
   };
 
   const getCompletedCount = () => {
-    return candidates.filter((c) => c.interviewStatus === "Completed").length;
+    const safeCandidates = Array.isArray(candidates) ? candidates : [];
+    return safeCandidates.filter((c) => c.interviewStatus === "Completed").length;
   };
 
   // Filter candidates by time & status
-  const filteredCandidates = candidates.filter((c) => {
+  const safeCandidatesList = Array.isArray(candidates) ? candidates : [];
+  const filteredCandidates = safeCandidatesList.filter((c) => {
     if (filterStatus && c.interviewStatus !== filterStatus) return false;
 
     if (filterTime) {
+      if (!c.interviewDate) return false;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const interviewDate = new Date(c.interviewDate);

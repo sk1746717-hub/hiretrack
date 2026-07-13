@@ -1,6 +1,7 @@
 import axios from "axios";
+import { API_BASE_URL } from "./api";
 
-const API_URL = "https://hiretrack-api-801x.onrender.com/api/templates";
+const API_URL = `${API_BASE_URL}/templates`;
 
 const getHeaders = () => {
   const token = localStorage.getItem("token");

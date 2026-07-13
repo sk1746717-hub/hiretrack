@@ -1,22 +1,8 @@
 import multer from "multer";
 import path from "path";
-import fs from "fs";
 
-// Create upload directory if it doesn't exist
-const uploadDir = "uploads";
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`);
-  },
-});
+// Memory storage keeps file buffers in RAM, avoiding server disk footprint
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedExtensions = [".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg"];
@@ -33,8 +19,15 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 10 * 1024 * 1024, // 10MB limit per file
   },
 });
+
+// Export helper for candidate creation/updates which handles multiple file attachments
+export const candidateAttachmentsUpload = upload.fields([
+  { name: "resume", maxCount: 1 },
+  { name: "coverLetter", maxCount: 1 },
+  { name: "certificates", maxCount: 5 }
+]);
 
 export default upload;

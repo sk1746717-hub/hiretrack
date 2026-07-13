@@ -2,7 +2,11 @@ import Task from "../models/Task.js";
 
 const getTasks = async (req, res) => {
   try {
-    const query = { userId: req.user._id };
+    const query = {};
+
+    if (req.user.role !== "Admin" && req.user.role !== "HR") {
+      query.userId = req.user._id;
+    }
 
     if (req.query.status) {
       query.status = req.query.status;
@@ -54,7 +58,12 @@ const updateTask = async (req, res) => {
   try {
     const { title, description, linkedCandidateId, dueDate, priority, status, category } = req.body;
 
-    let task = await Task.findOne({ _id: req.params.id, userId: req.user._id });
+    const query = { _id: req.params.id };
+    if (req.user.role !== "Admin" && req.user.role !== "HR") {
+      query.userId = req.user._id;
+    }
+
+    let task = await Task.findOne(query);
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
@@ -78,7 +87,12 @@ const updateTask = async (req, res) => {
 
 const deleteTask = async (req, res) => {
   try {
-    const task = await Task.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+    const query = { _id: req.params.id };
+    if (req.user.role !== "Admin" && req.user.role !== "HR") {
+      query.userId = req.user._id;
+    }
+
+    const task = await Task.findOneAndDelete(query);
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }

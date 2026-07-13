@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getUsers,
+  createUser,
   updateUserRole,
   updateUserStatus,
   deleteUser
@@ -13,6 +14,7 @@ router.use(protect);
 router.use(admin);
 
 router.get("/users", getUsers);
+router.post("/users", createUser);
 router.put("/users/:id/role", updateUserRole);
 router.put("/users/:id/status", updateUserStatus);
 router.delete("/users/:id", deleteUser);

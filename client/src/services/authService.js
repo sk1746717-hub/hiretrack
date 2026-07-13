@@ -1,12 +1,14 @@
 import axios from "axios";
+import { API_BASE_URL } from "./api";
 
-const API_URL = "https://hiretrack-api-801x.onrender.com/api/auth";
+const API_URL = `${API_BASE_URL}/auth`;
 
-const register = async (name, email, password) => {
+const register = async (name, email, password, role) => {
   const response = await axios.post(`${API_URL}/register`, {
     name,
     email,
     password,
+    role,
   });
   return response.data;
 };

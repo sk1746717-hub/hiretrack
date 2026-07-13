@@ -1,15 +1,17 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import NotificationCenter from "./NotificationCenter";
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-  logout();
-  navigate("/login", { replace: true });
-};
+    logout();
+    navigate("/login", { replace: true });
+  };
+
   const navItems = [
     {
       name: "Dashboard",
@@ -25,12 +27,30 @@ const Sidebar = () => {
       path: "/candidates",
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
       )
     },
     {
-      name: "Pipeline",
+      name: "Job Openings",
+      path: "/jobs",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      )
+    },
+    {
+      name: "Calendar Scheduler",
+      path: "/calendar",
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      )
+    },
+    {
+      name: "Pipeline Pipeline", // Legacy Kanban View compatibility
       path: "/pipeline",
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -39,16 +59,16 @@ const Sidebar = () => {
       )
     },
     {
-      name: "Interviews",
+      name: "Interviews Log",
       path: "/interviews",
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
         </svg>
       )
     },
     {
-      name: "Tasks",
+      name: "Tasks list",
       path: "/tasks",
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -57,7 +77,7 @@ const Sidebar = () => {
       )
     },
     {
-      name: "Reports",
+      name: "Analytics Report",
       path: "/reports",
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -66,7 +86,7 @@ const Sidebar = () => {
       )
     },
     {
-      name: "Settings",
+      name: "Settings page",
       path: "/settings",
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -87,24 +107,50 @@ const Sidebar = () => {
   ];
 
   const filteredNavItems = navItems.filter((item) => {
-    if (item.name === "User Management") {
-      return user?.role === "Admin";
+    if (!user) return false;
+
+    // Admin has access to all pages
+    if (user.role === "Admin") {
+      return true;
     }
-    return true;
+
+    // HR: Dashboard, Jobs, Candidates, Pipeline, Reports (Analytics Report), Calendar, Tasks, Notifications
+    if (user.role === "HR") {
+      return ["Dashboard", "Candidates", "Job Openings", "Calendar Scheduler", "Pipeline Pipeline", "Interviews Log", "Tasks list", "Analytics Report"].includes(item.name);
+    }
+
+    // Recruiter: Dashboard, Candidates, Job Openings (Assigned Jobs), Pipeline, Calendar, Tasks, Notifications
+    if (user.role === "Recruiter") {
+      return ["Dashboard", "Candidates", "Job Openings", "Calendar Scheduler", "Pipeline Pipeline", "Interviews Log", "Tasks list"].includes(item.name);
+    }
+
+    // Interviewer: Dashboard, Candidates (Assigned Candidates), Jobs (Read Only), Calendar, Interviews Log, Notifications
+    if (user.role === "Interviewer") {
+      return ["Dashboard", "Candidates", "Job Openings", "Calendar Scheduler", "Interviews Log"].includes(item.name);
+    }
+
+    return false;
   });
 
   return (
-    <aside className="w-64 bg-slate-950/40 border-r border-slate-800/80 text-slate-100 flex flex-col h-screen sticky top-0 backdrop-blur-md z-20">
-      <div className="p-6 border-b border-slate-800/60 flex items-center gap-3">
-        <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-600/45 shadow-[0_0_12px_rgba(37,99,235,0.45)]">
-          HT
+    <aside className="w-64 bg-slate-950/40 border-r border-slate-800/80 text-slate-100 flex flex-col h-screen sticky top-0 backdrop-blur-md z-20 print:hidden select-none">
+      
+      {/* Sidebar Header with embedded NotificationCenter */}
+      <div className="p-6 border-b border-slate-800/60 flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-600/40 shadow-[0_0_12px_rgba(37,99,235,0.45)]">
+            HT
+          </div>
+          <span className="text-xl font-bold tracking-tight text-white">
+            Hire<span className="text-blue-400">Track</span>
+          </span>
         </div>
-        <span className="text-xl font-bold tracking-tight text-white">
-          Hire<span className="text-blue-400">Track</span>
-        </span>
+        
+        {/* Real-time Notification Center */}
+        <NotificationCenter />
       </div>
 
-      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto max-h-[calc(100vh-270px)]">
+      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto max-h-[calc(100vh-220px)] custom-scrollbar">
         {filteredNavItems.map((item) => (
           <NavLink
             key={item.name}
@@ -118,30 +164,12 @@ const Sidebar = () => {
             }
           >
             {item.icon}
-            {item.name}
+            {item.name.split(" ")[0]}
           </NavLink>
         ))}
       </nav>
 
-      {/* Sidebar Promo CTA Panel */}
-      <div className="mx-4 my-4 p-4 rounded-xl bg-gradient-to-br from-blue-955/40 via-blue-900/10 to-blue-955/40 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)] space-y-3 shrink-0">
-        <span className="inline-block text-[9px] px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold uppercase tracking-wider">
-          PRO FEATURE
-        </span>
-        <div className="space-y-1">
-          <h4 className="text-xs font-bold text-white">Upgrade HireTrack</h4>
-          <p className="text-[10px] text-slate-400 leading-relaxed">
-            Unlock advanced analytics, pipelines, and automated candidate workflows.
-          </p>
-        </div>
-        <button
-          onClick={() => navigate("/settings")}
-          className="w-full text-center py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] uppercase tracking-wider transition-colors shadow-md shadow-blue-600/20 cursor-pointer"
-        >
-          Learn More
-        </button>
-      </div>
-
+      {/* Recruiter profile information */}
       <div className="p-4 border-t border-slate-800 bg-slate-950/50 shrink-0">
         <div className="flex items-center gap-3 mb-4 px-2">
           <div className="h-10 w-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-350 font-semibold uppercase">
@@ -149,7 +177,7 @@ const Sidebar = () => {
           </div>
           <div className="overflow-hidden">
             <h4 className="text-sm font-semibold text-white truncate">{user?.name || "Recruiter"}</h4>
-            <p className="text-xs text-slate-500 truncate">{user?.email || "recruiter@hiretrack.com"}</p>
+            <p className="text-xs text-slate-500 truncate">{user?.role || "Recruiter"}</p>
           </div>
         </div>
         <button

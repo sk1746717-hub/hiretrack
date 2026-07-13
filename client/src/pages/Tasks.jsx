@@ -41,7 +41,11 @@ const Tasks = () => {
       }
 
       setTasks(filteredTasks);
-      setCandidates(candidatesData);
+      setCandidates(
+        Array.isArray(candidatesData)
+          ? candidatesData
+          : candidatesData?.candidates || []
+      );
     } catch (error) {
       console.error("Fetch Tasks Error:", error);
       toast.error("Failed to load tasks dashboard");
@@ -461,7 +465,7 @@ const Tasks = () => {
                     style={{ colorScheme: "dark" }}
                   >
                     <option value="">None</option>
-                    {candidates.map((c) => (
+                    {Array.isArray(candidates) && candidates.map((c) => (
                       <option key={c._id} value={c._id}>
                         {c.fullName} ({c.roleApplied})
                       </option>

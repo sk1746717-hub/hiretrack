@@ -22,8 +22,12 @@ const Pipeline = () => {
     try {
       setLoading(true);
       // Fetch only active (non-archived) candidates
-      const data = await candidateService.getCandidates("", "", "", "false", "newest");
-      setCandidates(data);
+      const response = await candidateService.getCandidates("", "", "", "false", "newest");
+      setCandidates(
+        Array.isArray(response)
+          ? response
+          : response.candidates || []
+      );
     } catch (error) {
       console.error("Fetch Pipeline Error:", error);
       toast.error("Failed to load candidates pipeline");
@@ -60,15 +64,17 @@ const Pipeline = () => {
     const candidateId = e.dataTransfer.getData("text/plain");
     if (!candidateId) return;
 
+    const safeCandidates = Array.isArray(candidates) ? candidates : [];
     // Find candidate to see if status actually changed
-    const candidate = candidates.find((c) => c._id === candidateId);
+    const candidate = safeCandidates.find((c) => c._id === candidateId);
     if (!candidate || candidate.status === targetStatus) return;
 
     // Optimistically update UI state
-    const originalCandidates = [...candidates];
-    setCandidates((prev) =>
-      prev.map((c) => (c._id === candidateId ? { ...c, status: targetStatus } : c))
-    );
+    const originalCandidates = [...safeCandidates];
+    setCandidates((prev) => {
+      const safePrev = Array.isArray(prev) ? prev : [];
+      return safePrev.map((c) => (c._id === candidateId ? { ...c, status: targetStatus } : c));
+    });
 
     try {
       const updatedData = {
@@ -96,7 +102,8 @@ const Pipeline = () => {
 
   // Group candidates by status
   const getCandidatesByStatus = (status) => {
-    return candidates.filter((c) => c.status === status);
+    const safeCandidates = Array.isArray(candidates) ? candidates : [];
+    return safeCandidates.filter((c) => c.status === status);
   };
 
   return (

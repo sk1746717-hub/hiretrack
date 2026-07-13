@@ -8,6 +8,7 @@ const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("Recruiter");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { login, token } = useAuth();
@@ -21,7 +22,7 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !role) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -33,7 +34,7 @@ const Register = () => {
 
     setIsSubmitting(true);
     try {
-      const data = await authService.register(name, email, password);
+      const data = await authService.register(name, email, password, role);
       login(data.user, data.token);
       toast.success(data.message || "Registration successful!");
       navigate("/dashboard");
@@ -227,6 +228,24 @@ const Register = () => {
               required
               className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-200 placeholder-slate-650 focus:outline-none focus:border-indigo-500 transition-all duration-200"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              Role
+            </label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              required
+              className="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-sm text-slate-350 focus:outline-none focus:border-indigo-500 transition-all duration-200 cursor-pointer"
+              style={{ colorScheme: "dark" }}
+            >
+              <option value="Admin">Admin</option>
+              <option value="HR">HR</option>
+              <option value="Recruiter">Recruiter</option>
+              <option value="Interviewer">Interviewer</option>
+            </select>
           </div>
 
           <button

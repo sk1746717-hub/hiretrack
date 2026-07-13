@@ -2,22 +2,27 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
+const generateToken = (id, role) => {
+  return jwt.sign({ id, role }, process.env.JWT_SECRET, {
     expiresIn: "30d",
   });
 };
 
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "Please enter all fields" });
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ message: "Please enter all fields including role" });
     }
 
     if (password.length < 6) {
       return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    }
+
+    const validRoles = ["Admin", "HR", "Recruiter", "Interviewer"];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ message: "Invalid role specified. Role must be one of: Admin, HR, Recruiter, Interviewer" });
     }
 
     const userExists = await User.findOne({ email });
@@ -32,12 +37,13 @@ const registerUser = async (req, res) => {
       name,
       email,
       password: hashedPassword,
+      role,
     });
 
     if (user) {
       res.status(201).json({
         message: "User registered successfully",
-        token: generateToken(user._id),
+        token: generateToken(user._id, user.role),
         user: {
           id: user._id,
           name: user.name,
@@ -78,7 +84,7 @@ const loginUser = async (req, res) => {
 
     res.json({
       message: "Login successful",
-      token: generateToken(user._id),
+      token: generateToken(user._id, user.role),
       user: {
         id: user._id,
         name: user.name,
@@ -94,7 +100,7 @@ const loginUser = async (req, res) => {
 
 const getUsers = async (req, res) => {
   try {
-    const users = await User.find({}, "name email role");
+    const users = await User.find({}, "name email role status");
     res.json(users);
   } catch (error) {
     console.error("Get Users Error:", error.message);

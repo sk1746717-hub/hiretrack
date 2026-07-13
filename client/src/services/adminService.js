@@ -1,6 +1,7 @@
 import axios from "axios";
+import { API_BASE_URL } from "./api";
 
-const API_URL = "https://hiretrack-api-801x.onrender.com/api/admin/users";
+const API_URL = `${API_BASE_URL}/admin/users`;
 
 const getHeaders = () => {
   const token = localStorage.getItem("token");
@@ -29,8 +30,14 @@ const deleteUser = async (id) => {
   return response.data;
 };
 
+const createUser = async (userData) => {
+  const response = await axios.post(API_URL, userData, getHeaders());
+  return response.data;
+};
+
 const adminService = {
   getUsers,
+  createUser,
   updateUserRole,
   updateUserStatus,
   deleteUser,

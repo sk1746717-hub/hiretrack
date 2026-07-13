@@ -8,6 +8,8 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Candidates from "./pages/Candidates";
 import CandidateDetails from "./pages/CandidateDetails";
+import Jobs from "./pages/Jobs";
+import CalendarView from "./pages/CalendarView";
 import Pipeline from "./pages/Pipeline";
 import Interviews from "./pages/Interviews";
 import Tasks from "./pages/Tasks";
@@ -223,9 +225,29 @@ function App() {
           }
         />
         <Route
-          path="/pipeline"
+          path="/jobs"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "HR", "Recruiter", "Interviewer"]}>
+              <ProtectedLayout>
+                <Jobs />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/calendar"
           element={
             <ProtectedRoute>
+              <ProtectedLayout>
+                <CalendarView />
+              </ProtectedLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pipeline"
+          element={
+            <ProtectedRoute allowedRoles={["Admin", "HR", "Recruiter"]}>
               <ProtectedLayout>
                 <Pipeline />
               </ProtectedLayout>
@@ -245,7 +267,7 @@ function App() {
         <Route
           path="/tasks"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["Admin", "HR", "Recruiter"]}>
               <ProtectedLayout>
                 <Tasks />
               </ProtectedLayout>
@@ -255,7 +277,7 @@ function App() {
         <Route
           path="/reports"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["Admin", "HR"]}>
               <ProtectedLayout>
                 <Reports />
               </ProtectedLayout>
@@ -265,7 +287,7 @@ function App() {
         <Route
           path="/settings"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={["Admin"]}>
               <ProtectedLayout>
                 <Settings />
               </ProtectedLayout>

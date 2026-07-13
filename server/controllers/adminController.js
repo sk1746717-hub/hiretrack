@@ -1,5 +1,6 @@
 import User from "../models/User.js";
 import AuditLog from "../models/AuditLog.js";
+import bcrypt from "bcryptjs";
 
 // @desc    Get all users
 // @route   GET /api/admin/users
@@ -14,6 +15,59 @@ const getUsers = async (req, res) => {
   }
 };
 
+// @desc    Create new user
+// @route   POST /api/admin/users
+// @access  Private/Admin
+const createUser = async (req, res) => {
+  try {
+    const { name, email, password, role, status } = req.body;
+
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({ message: "Please fill in all required fields" });
+    }
+
+    if (!["Admin", "HR", "Recruiter", "Interviewer"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role specified" });
+    }
+
+    const emailExists = await User.findOne({ email });
+    if (emailExists) {
+      return res.status(400).json({ message: "User with this email already exists" });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    }
+
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      status: status || "Active",
+    });
+
+    const detailMsg = `Admin ${req.user.name} created user ${newUser.name} (${newUser.email}) with role ${newUser.role}.`;
+    await AuditLog.create({
+      action: "USER_CREATION",
+      performedBy: req.user._id,
+      details: detailMsg,
+    });
+    console.log(`Activity Log: ${detailMsg}`);
+
+    // Return the user without password
+    const userResponse = await User.findById(newUser._id).select("-password");
+    res.status(201).json({ message: "User created successfully", user: userResponse });
+  } catch (error) {
+    console.error("Create User Error:", error.message);
+    res.status(500).json({ message: "Server error while creating user" });
+  }
+};
+
 // @desc    Update user role
 // @route   PUT /api/admin/users/:id/role
 // @access  Private/Admin
@@ -22,17 +76,25 @@ const updateUserRole = async (req, res) => {
     const { id } = req.params;
     const { role } = req.body;
 
-    if (!role || !["Admin", "Recruiter", "Interviewer"].includes(role)) {
+    if (!role || !["Admin", "HR", "Recruiter", "Interviewer"].includes(role)) {
       return res.status(400).json({ message: "Invalid role specified" });
     }
 
     if (id === req.user._id.toString()) {
-      return res.status(400).json({ message: "You cannot modify your own role while logged in." });
+      return res.status(403).json({ message: "You cannot modify your own administrator account." });
     }
 
     const targetUser = await User.findById(id);
     if (!targetUser) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    // Protect last active administrator from role change
+    if (targetUser.role === "Admin" && (targetUser.status === "Active" || !targetUser.status)) {
+      const activeAdminCount = await User.countDocuments({ role: "Admin", status: { $ne: "Disabled" } });
+      if (activeAdminCount <= 1) {
+        return res.status(403).json({ message: "At least one active administrator must exist." });
+      }
     }
 
     const oldRole = targetUser.role;
@@ -66,21 +128,20 @@ const updateUserStatus = async (req, res) => {
       return res.status(400).json({ message: "Invalid status specified" });
     }
 
+    if (id === req.user._id.toString()) {
+      return res.status(403).json({ message: "You cannot modify your own administrator account." });
+    }
+
     const targetUser = await User.findById(id);
     if (!targetUser) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (status === "Disabled") {
-      if (id === req.user._id.toString()) {
-        return res.status(400).json({ message: "You cannot disable your own admin account while logged in." });
-      }
-
-      if (targetUser.role === "Admin") {
-        const activeAdminCount = await User.countDocuments({ role: "Admin", status: "Active" });
-        if (activeAdminCount <= 1) {
-          return res.status(400).json({ message: "Cannot disable the last active Admin account." });
-        }
+    // Protect last active administrator from status change (deactivation)
+    if (status === "Disabled" && targetUser.role === "Admin") {
+      const activeAdminCount = await User.countDocuments({ role: "Admin", status: { $ne: "Disabled" } });
+      if (activeAdminCount <= 1) {
+        return res.status(403).json({ message: "At least one active administrator must exist." });
       }
     }
 
@@ -111,7 +172,7 @@ const deleteUser = async (req, res) => {
     const { id } = req.params;
 
     if (id === req.user._id.toString()) {
-      return res.status(400).json({ message: "You cannot delete your own admin account." });
+      return res.status(403).json({ message: "You cannot modify your own administrator account." });
     }
 
     const targetUser = await User.findById(id);
@@ -119,10 +180,11 @@ const deleteUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    // Protect last active administrator from deletion
     if (targetUser.role === "Admin") {
-      const adminCount = await User.countDocuments({ role: "Admin" });
-      if (adminCount <= 1) {
-        return res.status(400).json({ message: "Cannot delete the last remaining Admin account." });
+      const activeAdminCount = await User.countDocuments({ role: "Admin", status: { $ne: "Disabled" } });
+      if (activeAdminCount <= 1) {
+        return res.status(403).json({ message: "At least one active administrator must exist." });
       }
     }
 
@@ -143,4 +205,4 @@ const deleteUser = async (req, res) => {
   }
 };
 
-export { getUsers, updateUserRole, updateUserStatus, deleteUser };
+export { getUsers, createUser, updateUserRole, updateUserStatus, deleteUser };

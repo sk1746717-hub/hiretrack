@@ -8,6 +8,51 @@ import CandidateForm from "../components/CandidateForm";
 import Loader from "../components/Loader";
 import EmptyState from "../components/EmptyState";
 
+const PREDEFINED_TEMPLATES = [
+  {
+    _id: "predefined-invitation",
+    name: "Interview Invitation",
+    subject: "Interview Invitation - {{jobRole}} - HireTrack",
+    body: "Dear {{candidateName}},\n\nWe are pleased to invite you for an interview for the {{jobRole}} position at {{company}}.\n\nDate: {{interviewDate}}\nTime: {{interviewTime}}\n\nLooking forward to speaking with you.\n\nBest regards,\n{{recruiterName}}"
+  },
+  {
+    _id: "predefined-reminder",
+    name: "Interview Reminder",
+    subject: "Reminder: Interview for {{jobRole}} - HireTrack",
+    body: "Dear {{candidateName}},\n\nThis is a friendly reminder of your upcoming interview for the {{jobRole}} position at {{company}}.\n\nDate: {{interviewDate}}\nTime: {{interviewTime}}\n\nPlease let us know if you need to reschedule.\n\nRegards,\n{{recruiterName}}"
+  },
+  {
+    _id: "predefined-received",
+    name: "Application Received",
+    subject: "Application Received - {{jobRole}} - HireTrack",
+    body: "Dear {{candidateName}},\n\nThank you for applying for the {{jobRole}} position at {{company}}. We have received your application and will review it shortly.\n\nBest regards,\n{{recruiterName}}"
+  },
+  {
+    _id: "predefined-shortlisted",
+    name: "Shortlisted",
+    subject: "Great News: Shortlisted for {{jobRole}} - HireTrack",
+    body: "Dear {{candidateName}},\n\nCongratulations! We have shortlisted your application for the {{jobRole}} position at {{company}}. We will contact you soon to schedule the next steps.\n\nBest regards,\n{{recruiterName}}"
+  },
+  {
+    _id: "predefined-rejected",
+    name: "Rejected",
+    subject: "Application Update - {{jobRole}} - HireTrack",
+    body: "Dear {{candidateName}},\n\nThank you for your interest in the {{jobRole}} position at {{company}}. After careful review, we have decided to move forward with other candidates whose profiles align more closely with our needs at this time.\n\nWe wish you all the best.\n\nSincerely,\n{{recruiterName}}"
+  },
+  {
+    _id: "predefined-offer",
+    name: "Offer Letter",
+    subject: "Job Offer: {{jobRole}} - HireTrack",
+    body: "Dear {{candidateName}},\n\nWe are thrilled to offer you the position of {{jobRole}} at {{company}}! Please find your offer letter attached.\n\nWe are looking forward to welcoming you to the team.\n\nBest regards,\n{{recruiterName}}"
+  },
+  {
+    _id: "predefined-followup",
+    name: "Follow-up Reminder",
+    subject: "Follow-up regarding {{jobRole}} application - HireTrack",
+    body: "Dear {{candidateName}},\n\nI hope this email finds you well. I am following up on your application for the {{jobRole}} position at {{company}}. Please let me know your availability for a quick update.\n\nRegards,\n{{recruiterName}}"
+  }
+];
+
 const Candidates = () => {
   const { user } = useAuth();
   const [candidates, setCandidates] = useState([]);
@@ -26,6 +71,21 @@ const Candidates = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Bulk Email Outreach states
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState([]);
+  const [showBulkEmailModal, setShowBulkEmailModal] = useState(false);
+  const [bulkEmailData, setBulkEmailData] = useState({ subject: "", body: "" });
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [selectedAttachments, setSelectedAttachments] = useState([]);
+  const [newAttachmentFiles, setNewAttachmentFiles] = useState([]);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+
+  // Manual Interview states for templates
+  const [manualInterviewDate, setManualInterviewDate] = useState("");
+  const [manualInterviewTime, setManualInterviewTime] = useState("");
+  const [manualMeetingLink, setManualMeetingLink] = useState("");
+  const [manualInterviewerName, setManualInterviewerName] = useState("");
 
   // Bulk Import CSV states
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
@@ -133,8 +193,8 @@ const Candidates = () => {
       
       if (data && data.candidates) {
         setCandidates(data.candidates);
-        setTotalPages(data.totalPages || 1);
-        setTotalCandidates(data.totalCandidates || 0);
+        setTotalPages(data.totalPages || data.pages || 1);
+        setTotalCandidates(data.totalCandidates || data.total || 0);
       } else {
         setCandidates(Array.isArray(data) ? data : []);
         setTotalPages(1);
@@ -159,6 +219,196 @@ const Candidates = () => {
 
     return () => clearTimeout(delayDebounceFn);
   }, [search, status, source, archived, sort, page]);
+
+  const handleSelectRow = (candidateId) => {
+    setSelectedCandidateIds((prev) =>
+      prev.includes(candidateId)
+        ? prev.filter((id) => id !== candidateId)
+        : [...prev, candidateId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedCandidateIds.length === candidates.length) {
+      setSelectedCandidateIds([]);
+    } else {
+      setSelectedCandidateIds(candidates.map((c) => c._id));
+    }
+  };
+
+  const getPreviewCandidate = () => {
+    if (selectedCandidateIds.length === 0) return null;
+    return candidates.find(c => selectedCandidateIds.includes(c._id)) || null;
+  };
+
+  const replaceTemplateVariables = (text) => {
+    if (!text) return "";
+    const previewCand = getPreviewCandidate();
+    if (!previewCand) return text;
+
+    const companyName = localStorage.getItem("pref_profile_company") || "HireTrack";
+    const isInterviewTemplate = selectedTemplateId === "predefined-invitation" || selectedTemplateId === "predefined-reminder";
+
+    let intDateStr = "To be communicated";
+    let intTimeStr = "To be communicated";
+    let linkStr = "To be communicated";
+    let interviewerNameStr = "To be communicated";
+
+    if (isInterviewTemplate) {
+      if (manualInterviewDate) {
+        intDateStr = new Date(manualInterviewDate).toLocaleDateString();
+      }
+      if (manualInterviewTime) {
+        intTimeStr = manualInterviewTime;
+      }
+      if (manualMeetingLink) {
+        linkStr = manualMeetingLink;
+      }
+      if (manualInterviewerName) {
+        interviewerNameStr = manualInterviewerName;
+      }
+    } else {
+      intDateStr = previewCand.interviewDate ? new Date(previewCand.interviewDate).toLocaleDateString() : "To be communicated";
+      intTimeStr = previewCand.interviewTime || "To be communicated";
+      linkStr = "To be communicated";
+      interviewerNameStr = previewCand.interviewerName || "To be communicated";
+    }
+
+    const jobTitle = previewCand.jobId?.title || previewCand.roleApplied || "Full Stack Developer";
+    const recruiterName = user?.name || "Recruiter";
+
+    return text
+      .replace(/\{\{candidateName\}\}/gi, previewCand.fullName || "")
+      .replace(/\{\{CandidateName\}\}/g, previewCand.fullName || "")
+      .replace(/\{\{candidateEmail\}\}/gi, previewCand.email || "")
+      .replace(/\{\{CandidateEmail\}\}/g, previewCand.email || "")
+      .replace(/\{\{jobRole\}\}/gi, jobTitle)
+      .replace(/\{\{RoleApplied\}\}/g, jobTitle)
+      .replace(/\{\{company\}\}/gi, companyName)
+      .replace(/\{\{interviewDate\}\}/gi, intDateStr)
+      .replace(/\{\{interviewTime\}\}/gi, intTimeStr)
+      .replace(/\{\{meetingLink\}\}/gi, linkStr)
+      .replace(/\{\{interviewerName\}\}/gi, interviewerNameStr)
+      .replace(/\{\{recruiterName\}\}/gi, recruiterName)
+      .replace(/\{\{RecruiterName\}\}/g, recruiterName);
+  };
+
+  const replaceManualInterviewVars = (text) => {
+    if (!text) return "";
+    const isInterviewTemplate = selectedTemplateId === "predefined-invitation" || selectedTemplateId === "predefined-reminder";
+
+    let intDateStr = "To be communicated";
+    let intTimeStr = "To be communicated";
+    let linkStr = "To be communicated";
+    let interviewerNameStr = "To be communicated";
+
+    if (isInterviewTemplate) {
+      if (manualInterviewDate) {
+        intDateStr = new Date(manualInterviewDate).toLocaleDateString();
+      }
+      if (manualInterviewTime) {
+        intTimeStr = manualInterviewTime;
+      }
+      if (manualMeetingLink) {
+        linkStr = manualMeetingLink;
+      }
+      if (manualInterviewerName) {
+        interviewerNameStr = manualInterviewerName;
+      }
+      
+      return text
+        .replace(/\{\{interviewDate\}\}/gi, intDateStr)
+        .replace(/\{\{interviewTime\}\}/gi, intTimeStr)
+        .replace(/\{\{meetingLink\}\}/gi, linkStr)
+        .replace(/\{\{interviewerName\}\}/gi, interviewerNameStr);
+    }
+    
+    return text;
+  };
+
+  const handleTemplateChange = (e) => {
+    const tempId = e.target.value;
+    setSelectedTemplateId(tempId);
+    if (!tempId) {
+      setBulkEmailData({ subject: "", body: "" });
+      return;
+    }
+    const temp = PREDEFINED_TEMPLATES.find((t) => t._id === tempId);
+    if (temp) {
+      setBulkEmailData({ subject: temp.subject, body: temp.body });
+    }
+  };
+
+  const handleBulkEmailSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!bulkEmailData.subject || !bulkEmailData.body) {
+      toast.error("Subject and message body are required");
+      return;
+    }
+
+    if (selectedCandidateIds.length === 0) {
+      toast.error("At least one candidate must be selected");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const selectedCandidates = candidates.filter(c => selectedCandidateIds.includes(c._id));
+    const missingOrInvalidEmails = selectedCandidates.filter(c => !c.email || !emailRegex.test(c.email));
+
+    if (missingOrInvalidEmails.length > 0) {
+      const names = missingOrInvalidEmails.map(c => c.fullName || "Unknown").join(", ");
+      toast.error(`Invalid/missing emails for: ${names}`);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const finalSubject = replaceManualInterviewVars(bulkEmailData.subject);
+      const finalBody = replaceManualInterviewVars(bulkEmailData.body);
+
+      const formData = new FormData();
+      formData.append("candidateIds", JSON.stringify(selectedCandidateIds));
+      formData.append("subject", finalSubject);
+      formData.append("message", finalBody);
+
+      if (selectedAttachments.length > 0) {
+        formData.append("existingAttachments", JSON.stringify(selectedAttachments));
+      }
+
+      if (newAttachmentFiles.length > 0) {
+        for (const file of newAttachmentFiles) {
+          formData.append("attachments", file);
+        }
+      }
+
+      const res = await candidateService.bulkEmail(selectedCandidateIds, finalSubject, finalBody, formData);
+
+      if (res.failedCount > 0) {
+        toast.error(`${res.sentCount} emails sent successfully, ${res.failedCount} failed.`);
+      } else {
+        toast.success("✓ Email campaign sent successfully.");
+        setShowBulkEmailModal(false);
+        setIsPreviewMode(false);
+        setBulkEmailData({ subject: "", body: "" });
+        setSelectedTemplateId("");
+        setSelectedAttachments([]);
+        setNewAttachmentFiles([]);
+        setSelectedCandidateIds([]);
+        setManualInterviewDate("");
+        setManualInterviewTime("");
+        setManualMeetingLink("");
+        setManualInterviewerName("");
+        fetchCandidates(search, status, source, archived, sort, page);
+      }
+    } catch (error) {
+      console.error("Bulk Email failed:", error);
+      const msg = error.response?.data?.message || "Failed to send bulk outreach emails";
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOpenAdd = () => {
     setEditingCandidate(null);
@@ -318,7 +568,7 @@ const Candidates = () => {
           <h1 className="text-3xl font-extrabold text-white tracking-tight">Candidates</h1>
           <p className="text-slate-400 text-sm mt-1">Manage and track candidates through your recruitment stages</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={exportToCSV}
             className="inline-flex items-center gap-2 px-4.5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-350 hover:text-white border border-slate-800 font-semibold text-sm transition-all cursor-pointer shadow-sm shadow-blue-500/5"
@@ -330,6 +580,17 @@ const Candidates = () => {
           </button>
           {user?.role !== "Interviewer" && (
             <>
+              {selectedCandidateIds.length > 0 && (
+                <button
+                  onClick={() => setShowBulkEmailModal(true)}
+                  className="inline-flex items-center gap-2 px-4.5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-all shadow-md shadow-blue-500/15 cursor-pointer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Send Outreach ({selectedCandidateIds.length})
+                </button>
+              )}
               <button
                 onClick={() => setShowBulkImportModal(true)}
                 className="inline-flex items-center gap-2 px-4.5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-350 hover:text-white border border-slate-800 font-semibold text-sm transition-all cursor-pointer shadow-sm shadow-blue-500/5"
@@ -403,17 +664,20 @@ const Candidates = () => {
               onDelete={handleDeleteCandidate}
               onArchive={handleArchive}
               onRestore={handleRestore}
+              selectedIds={selectedCandidateIds}
+              onSelectRow={handleSelectRow}
+              onSelectAll={handleSelectAll}
             />
           )}
         </div>
 
         {/* Integrated Pagination inside Panel Footer */}
         {!loading && candidates.length > 0 && totalPages > 1 && (
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-850">
+          <div className="flex flex-wrap items-center justify-between mt-6 pt-4 border-t border-slate-850 gap-4">
             <span className="text-xs text-slate-450">
               Showing page <strong className="text-slate-200">{page}</strong> of <strong className="text-slate-200">{totalPages}</strong> ({totalCandidates} total candidates)
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 disabled={page === 1}
                 onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
@@ -421,6 +685,25 @@ const Candidates = () => {
               >
                 Previous
               </button>
+
+              {/* Page Number Buttons */}
+              {Array.from({ length: totalPages }, (_, idx) => {
+                const pageNum = idx + 1;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                      page === pageNum
+                        ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-600/10"
+                        : "bg-slate-900 border-slate-800 text-slate-350 hover:text-white hover:border-slate-700"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
               <button
                 disabled={page === totalPages}
                 onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
@@ -519,6 +802,291 @@ const Candidates = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Bulk Email Modal */}
+      {showBulkEmailModal && (
+        <div className="fixed inset-0 bg-slate-955/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn print:hidden">
+          <div className="bg-slate-905 border border-slate-850 rounded-2xl w-full max-w-lg shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950/20">
+              <h2 className="text-lg font-bold text-white">
+                {isPreviewMode ? "Preview Bulk Email Campaign" : "Send Bulk Outreach Email"}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowBulkEmailModal(false);
+                  setIsPreviewMode(false);
+                  setSelectedAttachments([]);
+                  setNewAttachmentFiles([]);
+                  setSelectedTemplateId("");
+                  setManualInterviewDate("");
+                  setManualInterviewTime("");
+                  setManualMeetingLink("");
+                  setManualInterviewerName("");
+                }}
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {!isPreviewMode ? (
+              <form onSubmit={(e) => { e.preventDefault(); setIsPreviewMode(true); }} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Select Template</label>
+                  <select
+                    value={selectedTemplateId}
+                    onChange={handleTemplateChange}
+                    className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-350"
+                  >
+                    <option value="">Blank Outreach Draft</option>
+                    {PREDEFINED_TEMPLATES.map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.name} (Predefined)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {(selectedTemplateId === "predefined-invitation" || selectedTemplateId === "predefined-reminder") && (
+                  <div className="p-4 bg-slate-950/40 border border-slate-850/80 rounded-xl space-y-3 animate-fadeIn">
+                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">Manual Interview Details</span>
+                    <div className="grid grid-cols-2 gap-3.5">
+                      <div className="space-y-1">
+                        <label className="text-[9.5px] font-bold text-slate-500 uppercase tracking-wide">Interview Date</label>
+                        <input
+                          type="date"
+                          value={manualInterviewDate}
+                          onChange={(e) => setManualInterviewDate(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-850 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
+                          style={{ colorScheme: "dark" }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9.5px] font-bold text-slate-500 uppercase tracking-wide">Interview Time</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 10:00 AM IST"
+                          value={manualInterviewTime}
+                          onChange={(e) => setManualInterviewTime(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-850 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3.5">
+                      <div className="space-y-1">
+                        <label className="text-[9.5px] font-bold text-slate-500 uppercase tracking-wide">Meeting Link (Optional)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. https://meet.google.com/..."
+                          value={manualMeetingLink}
+                          onChange={(e) => setManualMeetingLink(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-850 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9.5px] font-bold text-slate-500 uppercase tracking-wide">Interviewer (Optional)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Jane Doe"
+                          value={manualInterviewerName}
+                          onChange={(e) => setManualInterviewerName(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-850 text-xs text-slate-200 focus:outline-none focus:border-blue-500/50"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Subject</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Update regarding your application"
+                    value={bulkEmailData.subject}
+                    onChange={(e) => setBulkEmailData(prev => ({ ...prev, subject: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950/60 border border-slate-850 text-slate-200 text-xs focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Message Body</label>
+                  <textarea
+                    rows="6"
+                    required
+                    placeholder="Dear {{CandidateName}}, thank you for applying for {{RoleApplied}}..."
+                    value={bulkEmailData.body}
+                    onChange={(e) => setBulkEmailData(prev => ({ ...prev, body: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-950/60 border border-slate-850 text-slate-200 text-xs focus:outline-none focus:border-blue-500/50 resize-none font-mono"
+                  />
+                </div>
+
+                <div className="text-[9px] text-slate-500 leading-normal bg-slate-950/40 p-2.5 rounded-lg border border-slate-850">
+                  <span className="font-bold">Dynamic Variables:</span> Use <code className="text-blue-400">{"{{candidateName}}"}</code> for candidate name, <code className="text-blue-400">{"{{jobRole}}"}</code> for role, and <code className="text-blue-400">{"{{recruiterName}}"}</code> for recruiter.
+                </div>
+
+                {/* Attachment options section */}
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                    Resolve Candidate Documents Dynamically
+                  </label>
+                  <div className="space-y-2 bg-slate-950/40 p-3 rounded-xl border border-slate-850 text-xs">
+                    <label className="flex items-center gap-2 text-slate-350 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedAttachments.some(a => a.type === "resume")}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedAttachments(prev => [...prev, { filename: "Resume.pdf", type: "resume" }]);
+                          } else {
+                            setSelectedAttachments(prev => prev.filter(a => a.type !== "resume"));
+                          }
+                        }}
+                        className="h-3.5 w-3.5 rounded border-slate-800 bg-slate-900 text-blue-600 focus:ring-0 cursor-pointer"
+                      />
+                      <span>Resume (Candidate's Uploaded PDF)</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-slate-355 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedAttachments.some(a => a.type === "coverLetter")}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedAttachments(prev => [...prev, { filename: "CoverLetter.pdf", type: "coverLetter" }]);
+                          } else {
+                            setSelectedAttachments(prev => prev.filter(a => a.type !== "coverLetter"));
+                          }
+                        }}
+                        className="h-3.5 w-3.5 rounded border-slate-800 bg-slate-900 text-blue-600 focus:ring-0 cursor-pointer"
+                      />
+                      <span>Cover Letter (Candidate's Stored PDF)</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-slate-355 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedAttachments.some(a => a.type === "certificates")}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedAttachments(prev => [...prev, { filename: "Certificates", type: "certificates" }]);
+                          } else {
+                            setSelectedAttachments(prev => prev.filter(a => a.type !== "certificates"));
+                          }
+                        }}
+                        className="h-3.5 w-3.5 rounded border-slate-800 bg-slate-900 text-blue-600 focus:ring-0 cursor-pointer"
+                      />
+                      <span>Certificates Portfolio</span>
+                    </label>
+
+                    <div className="pt-2 border-t border-slate-900/60 space-y-1">
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block">Broadcast Attachment to All</span>
+                      <input
+                        type="file"
+                        multiple
+                        onChange={(e) => setNewAttachmentFiles(Array.from(e.target.files))}
+                        className="w-full text-xs text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-blue-600/20 file:text-blue-400 file:cursor-pointer hover:file:bg-blue-600/30"
+                      />
+                      {newAttachmentFiles.length > 0 && (
+                        <div className="text-[9px] text-slate-500 mt-1">
+                          Selected: {newAttachmentFiles.map(f => f.name).join(", ")}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowBulkEmailModal(false);
+                      setIsPreviewMode(false);
+                      setSelectedAttachments([]);
+                      setNewAttachmentFiles([]);
+                      setSelectedTemplateId("");
+                      setManualInterviewDate("");
+                      setManualInterviewTime("");
+                      setManualMeetingLink("");
+                      setManualInterviewerName("");
+                    }}
+                    className="px-4 py-2 rounded-lg border border-slate-800 text-xs text-slate-400 hover:text-white cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-colors cursor-pointer shadow-md"
+                  >
+                    Preview Campaign
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="p-6 space-y-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
+                <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-850 space-y-3 text-xs text-slate-350">
+                  <div>
+                    <span className="font-bold text-slate-500 block uppercase text-[9px] tracking-wider">Recipient(s):</span>
+                    <div className="text-white font-medium max-h-[60px] overflow-y-auto pr-1">
+                      {candidates.filter(c => selectedCandidateIds.includes(c._id)).map(c => c.email).join(", ")}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-500 block uppercase text-[9px] tracking-wider">Subject Preview (Sample):</span>
+                    <span className="text-white font-semibold">{replaceTemplateVariables(bulkEmailData.subject)}</span>
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-500 block uppercase text-[9px] tracking-wider mb-1">Message Preview (Sample):</span>
+                    <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-900 text-slate-300 whitespace-pre-line leading-relaxed">
+                      {replaceTemplateVariables(bulkEmailData.body)}
+                    </div>
+                  </div>
+                  {(selectedAttachments.length > 0 || newAttachmentFiles.length > 0) && (
+                    <div>
+                      <span className="font-bold text-slate-500 block uppercase text-[9px] tracking-wider mb-1">Attachments:</span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedAttachments.map((att, aIdx) => (
+                          <span key={aIdx} className="px-2 py-0.5 rounded bg-slate-900 text-slate-455 border border-slate-850 text-[10px]">
+                            {att.filename} (Dynamic)
+                          </span>
+                        ))}
+                        {newAttachmentFiles.map((file, aIdx) => (
+                          <span key={aIdx} className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px]">
+                            {file.name} (Broadcast)
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                  <button
+                    onClick={() => setIsPreviewMode(false)}
+                    className="px-4 py-2 rounded-lg border border-slate-800 text-xs text-slate-400 hover:text-white cursor-pointer"
+                  >
+                    Edit Draft
+                  </button>
+                  <button
+                    onClick={handleBulkEmailSubmit}
+                    disabled={loading}
+                    className="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all disabled:opacity-50 cursor-pointer shadow-md flex items-center gap-1.5"
+                  >
+                    {loading ? (
+                      <>
+                        <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Sending...
+                      </>
+                    ) : "Confirm Send"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
