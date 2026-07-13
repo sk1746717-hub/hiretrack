@@ -1,5 +1,12 @@
 # HireTrack – AI-Powered Applicant Tracking System (ATS)
 
+
+![React](https://img.shields.io/badge/React-19-blue)
+![Node.js](https://img.shields.io/badge/Node.js-Express-green)
+![MongoDB](https://img.shields.io/badge/Database-MongoDB-success)
+![AI](https://img.shields.io/badge/AI-Groq-orange)
+![License](https://img.shields.io/badge/License-MIT-blue)
+
 ## 📌 Overview
 
 HireTrack is an enterprise-grade Applicant Tracking System (ATS) built on the MERN stack. It leverages Groq AI (using llama-3.3-70b-versatile) for automated candidate profile parsing, professional summary generation, interview question formulation, and job description match-scoring. It includes a visual Kanban board, interactive calendar view, Recharts dashboard widgets, bulk actions, Nodemailer transactional outreach campaigns, and role-based access controls (RBAC).
