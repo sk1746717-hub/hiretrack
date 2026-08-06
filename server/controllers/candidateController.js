@@ -810,11 +810,15 @@ export const updateCandidate = async (req, res) => {
 
     // Verify local file exists if local upload path is specified
     if (candidate.resumeUrl && candidate.resumeUrl.startsWith("/uploads/")) {
-      const filePath = path.join(process.cwd(), candidate.resumeUrl);
-      if (!fs.existsSync(filePath)) {
-        return res.status(400).json({ message: `Resume file not found on server disk: ${candidate.resumeUrl}` });
-      }
+    const filePath = path.join(process.cwd(), candidate.resumeUrl);
+
+    if (!fs.existsSync(filePath)) {
+        console.warn("Old resume file not found. Continuing update.");
+        candidate.resumeUrl = "";
+        candidate.resumeFileName = "";
+        candidate.resumePath = "";
     }
+}
 
     await candidate.save();
     res.json({ message: "Candidate profile updated successfully", candidate });
