@@ -15,6 +15,10 @@ import {
   sendCandidateSelectedEmail,
   sendCandidateRejectedEmail,
 } from "../utils/emailService.js";
+import { anonymizeCandidate, anonymizeText } from "../services/anonymizerService.js";
+import { analyzeAndPersistCandidateMatch, computeCandidateJobMatch, generateAndPersistInterviewKit } from "../services/aiIntelligenceService.js";
+
+
 
 const safeParse = (value, fallback) => {
   if (value === undefined || value === null || value === "") {
@@ -1535,5 +1539,113 @@ export const bulkAssignCandidates = async (req, res) => {
   } catch (error) {
     console.error("Bulk Assignment Error:", error.message);
     res.status(500).json({ message: "Server error during bulk job assignment" });
+  }
+};
+
+/**
+ * Get ethical blind screening view of candidate with masked PII
+ */
+export const getCandidateAnonymized = async (req, res) => {
+  try {
+    const candidate = await Candidate.findById(req.params.id);
+    if (!candidate) {
+      return res.status(404).json({ message: "Candidate not found" });
+    }
+
+    const hasAccess = await verifyAccess(req, candidate);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Not authorized to access candidate details" });
+    }
+
+    const anonymizedData = anonymizeCandidate(candidate);
+    res.json(anonymizedData);
+  } catch (error) {
+    console.error("Get Anonymized Candidate Error:", error.message);
+    res.status(500).json({ message: "Server error fetching anonymized candidate" });
+  }
+};
+
+/**
+ * Anonymize raw text string
+ */
+export const anonymizeRawText = async (req, res) => {
+  try {
+    const { text } = req.body || {};
+    if (!text || typeof text !== "string") {
+      return res.status(400).json({ message: "Text string is required in request body" });
+    }
+    const anonymizedText = anonymizeText(text);
+    res.json({ anonymizedText });
+  } catch (error) {
+    console.error("Anonymize Raw Text Error:", error.message);
+    res.status(500).json({ message: "Server error anonymizing text" });
+  }
+};
+
+/**
+ * Run multi-factor candidate-job match analysis and save to candidate.matchAnalysis
+ */
+export const runCandidateMatchAnalysis = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { jobId } = req.body || {};
+
+    const candidate = await Candidate.findById(id);
+    if (!candidate) {
+      return res.status(404).json({ message: "Candidate not found" });
+    }
+
+    const hasAccess = await verifyAccess(req, candidate);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Not authorized to access candidate details" });
+    }
+
+    const targetJobId = jobId || candidate.jobId;
+    if (!targetJobId) {
+      return res.status(400).json({ message: "No job ID provided or assigned to candidate for match analysis" });
+    }
+
+    const result = await analyzeAndPersistCandidateMatch(id, targetJobId);
+    res.json({
+      message: "Multi-factor candidate-job match analysis computed successfully",
+      matchAnalysis: result,
+    });
+  } catch (error) {
+    console.error("Run Candidate Match Analysis Error:", error.message);
+    res.status(500).json({ message: error.message || "Server error performing match analysis" });
+  }
+};
+
+/**
+ * Generate dynamic interview kit and save to candidate.interviewKits
+ */
+export const generateCandidateInterviewKit = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { jobId } = req.body || {};
+
+    const candidate = await Candidate.findById(id);
+    if (!candidate) {
+      return res.status(404).json({ message: "Candidate not found" });
+    }
+
+    const hasAccess = await verifyAccess(req, candidate);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Not authorized to access candidate details" });
+    }
+
+    const targetJobId = jobId || candidate.jobId;
+    if (!targetJobId) {
+      return res.status(400).json({ message: "No job ID provided or assigned to candidate for interview kit generation" });
+    }
+
+    const interviewKit = await generateAndPersistInterviewKit(id, targetJobId);
+    res.json({
+      message: "Dynamic interview kit generated successfully",
+      interviewKit,
+    });
+  } catch (error) {
+    console.error("Generate Candidate Interview Kit Error:", error.message);
+    res.status(500).json({ message: error.message || "Server error generating interview kit" });
   }
 };

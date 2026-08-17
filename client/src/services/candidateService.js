@@ -203,7 +203,24 @@ const candidateService = {
   deleteRecruiterNote: async (id, noteId) => {
     const response = await axios.delete(`${API_URL}/${id}/notes/${noteId}`, getHeaders());
     return response.data;
+  },
+  runMatchAnalysis: async (id, jobId = null) => {
+    const response = await axios.post(`${API_URL}/${id}/match-analysis`, { jobId }, getHeaders());
+    return response.data;
+  },
+  generateInterviewKit: async (id, jobId = null) => {
+    const response = await axios.post(`${API_URL}/${id}/interview-kit`, { jobId }, getHeaders());
+    return response.data;
+  },
+  getAnonymizedCandidate: async (id) => {
+    const response = await axios.get(`${API_URL}/${id}/anonymized`, getHeaders());
+    return response.data;
+  },
+  anonymizeRawText: async (text) => {
+    const response = await axios.post(`${API_URL}/anonymize-text`, { text }, getHeaders());
+    return response.data;
   }
 };
 
 export default candidateService;
+

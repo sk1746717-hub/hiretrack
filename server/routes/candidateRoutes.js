@@ -22,6 +22,10 @@ import {
   bulkUpdateStatus,
   bulkEmailCandidates,
   bulkAssignCandidates,
+  getCandidateAnonymized,
+  anonymizeRawText,
+  runCandidateMatchAnalysis,
+  generateCandidateInterviewKit,
 } from "../controllers/candidateController.js";
 import { protect } from "../middleware/authMiddleware.js";
 import upload, { candidateAttachmentsUpload } from "../middleware/uploadMiddleware.js";
@@ -29,6 +33,9 @@ import upload, { candidateAttachmentsUpload } from "../middleware/uploadMiddlewa
 const router = express.Router();
 
 router.use(protect);
+
+// Anonymize raw text string
+router.post("/anonymize-text", anonymizeRawText);
 
 // Bulk actions (must place BEFORE /:id to avoid collision)
 router.post("/bulk-delete", bulkDeleteCandidates);
@@ -45,8 +52,14 @@ router.get("/", getCandidates);
 router.get("/stats", getCandidateStats);
 router.get("/reports", getCandidateReports);
 
-// AI Interview questions
+// AI Interview questions & Interview Kit
 router.post("/:id/generate-questions", generateAIQuestions);
+router.post("/:id/interview-kit", generateCandidateInterviewKit);
+
+// AI Multi-factor match analysis & Anonymized profile
+router.post("/:id/match-analysis", runCandidateMatchAnalysis);
+router.get("/:id/anonymized", getCandidateAnonymized);
+
 
 // Upgrade Paths (archived, restore, scorecard actions, and recruiter activity notes log)
 router.put("/:id/archive", archiveCandidate);
@@ -64,3 +77,4 @@ router.put("/:id", candidateAttachmentsUpload, updateCandidate);
 router.delete("/:id", deleteCandidate);
 
 export default router;
+

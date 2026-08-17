@@ -242,6 +242,20 @@ const candidateSchema = new mongoose.Schema(
       scenario: { type: [String], default: [] },
       coding: { type: [String], default: [] }
     },
+    // Multi-factor AI Match Analysis History
+    matchAnalysis: [
+      {
+        jobId: { type: mongoose.Schema.Types.ObjectId, ref: 'Job' },
+        overallFitScore: { type: Number, default: 0 },
+        skillMatchScore: { type: Number, default: 0 },
+        experienceMatchScore: { type: Number, default: 0 },
+        strengths: [{ type: String }],
+        missingCriticalSkills: [{ type: String }],
+        analyzedAt: { type: Date, default: Date.now }
+      }
+    ],
+    // AI Generated Interview Kits
+    interviewKits: { type: Array, default: [] },
     // Archive support
     isArchived: {
       type: Boolean,

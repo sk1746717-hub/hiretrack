@@ -7,6 +7,8 @@ import authService from "../services/authService";
 import templateService from "../services/templateService";
 import Loader from "../components/Loader";
 import CandidateForm from "../components/CandidateForm";
+import InterviewKitModal from "../components/InterviewKitModal";
+
 
 const PREDEFINED_TEMPLATES = [
   {
@@ -117,6 +119,41 @@ const CandidateDetails = () => {
     interviewerName: "",
     interviewRound: "Technical Round",
   });
+
+  // AI V2 States (Blind Screening, Multi-Factor Match, Interview Kit Modal)
+  const [isBlindMode, setIsBlindMode] = useState(false);
+  const [runningMatchAnalysis, setRunningMatchAnalysis] = useState(false);
+  const [generatingKit, setGeneratingKit] = useState(false);
+  const [showKitModal, setShowKitModal] = useState(false);
+
+  const handleRunMatchAnalysis = async () => {
+    try {
+      setRunningMatchAnalysis(true);
+      await candidateService.runMatchAnalysis(id);
+      toast.success("AI Multi-factor match analysis completed!");
+      fetchCandidateDetails();
+    } catch (error) {
+      console.error("Match Analysis Error:", error);
+      toast.error("Failed to compute match analysis");
+    } finally {
+      setRunningMatchAnalysis(false);
+    }
+  };
+
+  const handleGenerateInterviewKit = async () => {
+    try {
+      setGeneratingKit(true);
+      await candidateService.generateInterviewKit(id);
+      toast.success("Dynamic Interview Kit generated!");
+      fetchCandidateDetails();
+    } catch (error) {
+      console.error("Interview Kit Error:", error);
+      toast.error("Failed to generate interview kit");
+    } finally {
+      setGeneratingKit(false);
+    }
+  };
+
 
   const fetchCandidateDetails = async () => {
     try {
@@ -569,6 +606,20 @@ const CandidateDetails = () => {
 
         {/* Action Panel Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Blind Screening Mode Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsBlindMode(!isBlindMode)}
+            className={`px-3.5 py-2 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 ${
+              isBlindMode
+                ? "bg-purple-500/20 border-purple-500/40 text-purple-300 shadow-lg shadow-purple-500/10"
+                : "bg-slate-900 border-slate-850 hover:bg-slate-800 text-slate-400 hover:text-white"
+            }`}
+          >
+            <span className="text-sm">{isBlindMode ? "🙈" : "👁️"}</span>
+            {isBlindMode ? "Blind Mode: ON" : "Blind Screening Mode"}
+          </button>
+
           {user?.role !== "Interviewer" && (
             <>
               <button
@@ -612,13 +663,22 @@ const CandidateDetails = () => {
       <div className="p-6 rounded-2xl border border-slate-850 bg-slate-900/40 backdrop-blur-sm shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
-            <h1 className="text-3xl font-extrabold text-white tracking-tight">{candidate.fullName}</h1>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight">
+              {isBlindMode
+                ? `Candidate #${candidate._id ? candidate._id.toString().slice(-4).toUpperCase() : "0000"}`
+                : candidate.fullName}
+            </h1>
             <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${getStatusBadge(candidate.status)}`}>
               {candidate.status}
             </span>
             {candidate.isArchived && (
               <span className="text-[10px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-400 font-bold uppercase tracking-wider">
                 Archived
+              </span>
+            )}
+            {isBlindMode && (
+              <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 font-bold uppercase tracking-wider">
+                PII Redacted
               </span>
             )}
           </div>
@@ -696,23 +756,35 @@ const CandidateDetails = () => {
                 <div className="space-y-3 text-xs">
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-semibold">Email:</span>
-                    <a href={`mailto:${candidate.email}`} className="text-blue-400 font-bold hover:underline">
-                      {candidate.email}
-                    </a>
+                    {isBlindMode ? (
+                      <span className="text-purple-300 font-medium italic">[Redacted for Blind Review]</span>
+                    ) : (
+                      <a href={`mailto:${candidate.email}`} className="text-blue-400 font-bold hover:underline">
+                        {candidate.email}
+                      </a>
+                    )}
                   </div>
                   <div className="flex justify-between border-t border-slate-900 pt-2">
                     <span className="text-slate-500 font-semibold">Phone:</span>
-                    <a href={`tel:${candidate.phone}`} className="text-slate-300 font-bold">
-                      {candidate.phone}
-                    </a>
+                    {isBlindMode ? (
+                      <span className="text-purple-300 font-medium italic">[Redacted for Blind Review]</span>
+                    ) : (
+                      <a href={`tel:${candidate.phone}`} className="text-slate-300 font-bold">
+                        {candidate.phone}
+                      </a>
+                    )}
                   </div>
                   <div className="flex justify-between border-t border-slate-900 pt-2">
                     <span className="text-slate-500 font-semibold">Location:</span>
-                    <span className="text-slate-300 font-semibold">{candidate.currentLocation || "N/A"}</span>
+                    <span className="text-slate-300 font-semibold">
+                      {isBlindMode ? "[Redacted for Blind Review]" : (candidate.currentLocation || "N/A")}
+                    </span>
                   </div>
                   <div className="flex justify-between border-t border-slate-900 pt-2">
                     <span className="text-slate-500 font-semibold">LinkedIn:</span>
-                    {candidate.linkedinUrl ? (
+                    {isBlindMode ? (
+                      <span className="text-purple-300 font-medium italic">[Redacted for Blind Review]</span>
+                    ) : candidate.linkedinUrl ? (
                       <a href={candidate.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 font-bold hover:underline">
                         Profile Link
                       </a>
@@ -735,7 +807,9 @@ const CandidateDetails = () => {
                   </div>
                   <div className="flex justify-between border-t border-slate-900 pt-2">
                     <span className="text-slate-500 font-semibold">Company:</span>
-                    <span className="text-slate-300 font-semibold">{candidate.currentCompany || "N/A"}</span>
+                    <span className="text-slate-300 font-semibold">
+                      {isBlindMode ? "[Redacted for Blind Review]" : (candidate.currentCompany || "N/A")}
+                    </span>
                   </div>
                   <div className="flex justify-between border-t border-slate-900 pt-2">
                     <span className="text-slate-500 font-semibold">Source:</span>
@@ -755,12 +829,150 @@ const CandidateDetails = () => {
               </div>
             </div>
 
+
             {/* AI Summaries & Match Score cards */}
             <div className="lg:col-span-2 space-y-6">
               
+              {/* Multi-Factor AI Match Analysis & Insights Card */}
+              <div className="p-6 rounded-2xl border border-slate-850 bg-slate-900/40 backdrop-blur-sm space-y-6 shadow-xl">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-850">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+                        AI Semantic Match & Fit Analysis
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Multi-factor compatibility rating against target job role
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleRunMatchAnalysis}
+                      disabled={runningMatchAnalysis}
+                      className="px-3.5 py-2 rounded-xl bg-purple-600/15 hover:bg-purple-600/25 border border-purple-500/30 text-purple-400 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {runningMatchAnalysis ? (
+                        <>
+                          <svg className="animate-spin h-3.5 w-3.5 text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>Re-Analyze Fit</>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setShowKitModal(true)}
+                      className="px-3.5 py-2 rounded-xl bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/30 text-blue-400 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                      Open Interview Kit
+                    </button>
+                  </div>
+                </div>
+
+                {/* Multi-factor Score Gauges */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Overall Fit */}
+                  <div className="p-4 rounded-xl bg-slate-950/40 border border-slate-850 flex flex-col items-center justify-center space-y-2">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Overall Fit Score</div>
+                    <div className={`text-3xl font-extrabold ${(candidate.matchAnalysis?.slice(-1)[0]?.overallFitScore ?? candidate.matchScore ?? 0) >= 80 ? 'text-emerald-400' : (candidate.matchAnalysis?.slice(-1)[0]?.overallFitScore ?? candidate.matchScore ?? 0) >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
+                      {candidate.matchAnalysis?.slice(-1)[0]?.overallFitScore ?? candidate.matchScore ?? 0}%
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`h-1.5 rounded-full ${(candidate.matchAnalysis?.slice(-1)[0]?.overallFitScore ?? candidate.matchScore ?? 0) >= 80 ? 'bg-emerald-500' : (candidate.matchAnalysis?.slice(-1)[0]?.overallFitScore ?? candidate.matchScore ?? 0) >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                        style={{ width: `${candidate.matchAnalysis?.slice(-1)[0]?.overallFitScore ?? candidate.matchScore ?? 0}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Skill Match */}
+                  <div className="p-4 rounded-xl bg-slate-950/40 border border-slate-850 flex flex-col items-center justify-center space-y-2">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Skill Match Score</div>
+                    <div className={`text-3xl font-extrabold ${(candidate.matchAnalysis?.slice(-1)[0]?.skillMatchScore ?? 75) >= 80 ? 'text-emerald-400' : (candidate.matchAnalysis?.slice(-1)[0]?.skillMatchScore ?? 75) >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
+                      {candidate.matchAnalysis?.slice(-1)[0]?.skillMatchScore ?? 75}%
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`h-1.5 rounded-full ${(candidate.matchAnalysis?.slice(-1)[0]?.skillMatchScore ?? 75) >= 80 ? 'bg-emerald-500' : (candidate.matchAnalysis?.slice(-1)[0]?.skillMatchScore ?? 75) >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                        style={{ width: `${candidate.matchAnalysis?.slice(-1)[0]?.skillMatchScore ?? 75}%` }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* Experience Match */}
+                  <div className="p-4 rounded-xl bg-slate-950/40 border border-slate-850 flex flex-col items-center justify-center space-y-2">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Experience Match</div>
+                    <div className={`text-3xl font-extrabold ${(candidate.matchAnalysis?.slice(-1)[0]?.experienceMatchScore ?? 80) >= 80 ? 'text-emerald-400' : (candidate.matchAnalysis?.slice(-1)[0]?.experienceMatchScore ?? 80) >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>
+                      {candidate.matchAnalysis?.slice(-1)[0]?.experienceMatchScore ?? 80}%
+                    </div>
+                    <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className={`h-1.5 rounded-full ${(candidate.matchAnalysis?.slice(-1)[0]?.experienceMatchScore ?? 80) >= 80 ? 'bg-emerald-500' : (candidate.matchAnalysis?.slice(-1)[0]?.experienceMatchScore ?? 80) >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                        style={{ width: `${candidate.matchAnalysis?.slice(-1)[0]?.experienceMatchScore ?? 80}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Skills & Missing Critical Skills Chips */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Matched Core Skills</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(candidate.matchingSkills?.length ? candidate.matchingSkills : candidate.skills || []).map((sk, i) => (
+                        <span key={i} className="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+                          ✓ {sk}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Missing / Target Skill Gaps</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(candidate.matchAnalysis?.slice(-1)[0]?.missingCriticalSkills?.length ? candidate.matchAnalysis.slice(-1)[0].missingCriticalSkills : candidate.missingSkills || []).map((sk, i) => (
+                        <span key={i} className="text-xs px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 font-medium">
+                          ⚠ {sk}
+                        </span>
+                      ))}
+                      {(!candidate.matchAnalysis?.slice(-1)[0]?.missingCriticalSkills?.length && !candidate.missingSkills?.length) && (
+                        <span className="text-xs text-slate-500 italic">No critical skill gaps identified</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Strengths */}
+                {((candidate.matchAnalysis?.slice(-1)[0]?.strengths && candidate.matchAnalysis.slice(-1)[0].strengths.length > 0) || (candidate.strengths && candidate.strengths.length > 0)) && (
+                  <div className="p-3.5 rounded-xl bg-slate-950/30 border border-slate-850 space-y-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Key Candidate Strengths</span>
+                    <ul className="list-disc pl-4 text-xs text-slate-300 space-y-1">
+                      {(candidate.matchAnalysis?.slice(-1)[0]?.strengths || candidate.strengths || []).map((str, idx) => (
+                        <li key={idx}>{str}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
               {/* AI Professional Summary */}
               {candidate.aiSummary?.textSummary && (
                 <div className="p-6 rounded-2xl border border-slate-850 bg-slate-900/40 space-y-4">
+
                   <div className="flex items-center gap-2 pb-2 border-b border-slate-850">
                     <span className="p-1 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -1867,8 +2079,23 @@ const CandidateDetails = () => {
           </div>
         </div>
       )}
+
+      {/* Dynamic Interview Kit Modal Drawer */}
+      <InterviewKitModal
+        isOpen={showKitModal}
+        onClose={() => setShowKitModal(false)}
+        candidate={candidate}
+        interviewKit={candidate.interviewKits && candidate.interviewKits.length > 0 ? candidate.interviewKits[0] : null}
+        onRefreshKit={handleGenerateInterviewKit}
+        isGenerating={generatingKit}
+        onSaveNote={async (text) => {
+          await candidateService.addRecruiterNote(id, text);
+          fetchCandidateDetails();
+        }}
+      />
     </div>
   );
 };
 
 export default CandidateDetails;
+
