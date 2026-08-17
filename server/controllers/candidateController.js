@@ -17,6 +17,9 @@ import {
 } from "../utils/emailService.js";
 import { anonymizeCandidate, anonymizeText } from "../services/anonymizerService.js";
 import { analyzeAndPersistCandidateMatch, computeCandidateJobMatch, generateAndPersistInterviewKit } from "../services/aiIntelligenceService.js";
+import { addAiTask, getAiQueue } from "../queues/aiQueue.js";
+import { getIsRedisConnected } from "../config/redis.js";
+
 
 
 
@@ -1649,3 +1652,86 @@ export const generateCandidateInterviewKit = async (req, res) => {
     res.status(500).json({ message: error.message || "Server error generating interview kit" });
   }
 };
+
+/**
+ * Async Candidate Match Analysis with dual-mode execution (queues via BullMQ if online, falls back synchronously if offline)
+ */
+export const runAsyncCandidateMatchAnalysis = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { jobId } = req.body || {};
+
+    const candidate = await Candidate.findById(id);
+    if (!candidate) {
+      return res.status(404).json({ message: "Candidate not found" });
+    }
+
+    const hasAccess = await verifyAccess(req, candidate);
+    if (!hasAccess) {
+      return res.status(403).json({ message: "Not authorized to access candidate details" });
+    }
+
+    const targetJobId = jobId || candidate.jobId;
+    if (!targetJobId) {
+      return res.status(400).json({ message: "No job ID provided or assigned to candidate for match analysis" });
+    }
+
+    // Try queuing with BullMQ if Redis is connected
+    const queueResult = await addAiTask("match-analysis", { candidateId: id, jobId: targetJobId });
+
+    if (queueResult.queued) {
+      return res.status(202).json({
+        status: "queued",
+        jobId: queueResult.jobId,
+        message: "AI Candidate Match Analysis task queued successfully",
+      });
+    }
+
+    // Fallback: Synchronous execution if Redis is offline or queue unavailable
+    console.log("[Dual-Mode Execution] Redis offline. Processing match analysis synchronously...");
+    const result = await analyzeAndPersistCandidateMatch(id, targetJobId);
+    return res.json({
+      status: "completed",
+      message: "Multi-factor match analysis computed synchronously",
+      matchAnalysis: result,
+    });
+  } catch (error) {
+    console.error("Run Async Candidate Match Analysis Error:", error.message);
+    res.status(500).json({ message: error.message || "Server error performing async match analysis" });
+  }
+};
+
+/**
+ * Get background job processing status for polling UI
+ */
+export const getJobStatus = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    if (!jobId) {
+      return res.status(400).json({ message: "Job ID is required" });
+    }
+
+    const queue = getAiQueue();
+    if (!queue || !getIsRedisConnected()) {
+      return res.json({ status: "completed", message: "Redis offline, assumed completed" });
+    }
+
+    const job = await queue.getJob(jobId);
+    if (!job) {
+      return res.json({ status: "completed", message: "Job completed" });
+    }
+
+    const state = await job.getState();
+    if (state === "completed") {
+      return res.json({ status: "completed", result: job.returnvalue });
+    } else if (state === "failed") {
+      return res.json({ status: "failed", error: job.failedReason });
+    } else {
+      return res.json({ status: "processing", state });
+    }
+  } catch (error) {
+    console.error("Get Job Status Error:", error.message);
+    res.json({ status: "completed", message: "Error checking status, defaulting to completed" });
+  }
+};
+

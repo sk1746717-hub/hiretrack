@@ -55,6 +55,12 @@ const jobSchema = new mongoose.Schema(
   }
 );
 
+// High-throughput compound indexes for real query patterns
+jobSchema.index({ userId: 1, status: 1 });
+jobSchema.index({ status: 1, createdAt: -1 });
+jobSchema.index({ assignedRecruiterId: 1 });
+
 const Job = mongoose.model("Job", jobSchema);
 
 export default Job;
+

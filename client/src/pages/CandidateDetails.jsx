@@ -129,16 +129,41 @@ const CandidateDetails = () => {
   const handleRunMatchAnalysis = async () => {
     try {
       setRunningMatchAnalysis(true);
-      await candidateService.runMatchAnalysis(id);
-      toast.success("AI Multi-factor match analysis completed!");
-      fetchCandidateDetails();
+      const res = await candidateService.runAsyncMatchAnalysis(id);
+
+      if (res && res.status === "queued" && res.jobId) {
+        toast.success("AI Match Analysis queued in background. Processing...");
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await candidateService.getJobStatus(res.jobId);
+            if (statusRes.status === "completed" || statusRes.status === "failed") {
+              clearInterval(pollInterval);
+              setRunningMatchAnalysis(false);
+              if (statusRes.status === "completed") {
+                toast.success("AI Multi-factor Match Analysis completed!");
+                fetchCandidateDetails();
+              } else {
+                toast.error("Background processing failed");
+              }
+            }
+          } catch (pollErr) {
+            clearInterval(pollInterval);
+            setRunningMatchAnalysis(false);
+            fetchCandidateDetails();
+          }
+        }, 2000);
+      } else {
+        toast.success("AI Multi-factor match analysis completed!");
+        fetchCandidateDetails();
+        setRunningMatchAnalysis(false);
+      }
     } catch (error) {
       console.error("Match Analysis Error:", error);
       toast.error("Failed to compute match analysis");
-    } finally {
       setRunningMatchAnalysis(false);
     }
   };
+
 
   const handleGenerateInterviewKit = async () => {
     try {

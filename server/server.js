@@ -3,8 +3,12 @@ import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import mongoose from "mongoose";
 import connectDB from "./config/db.js";
+import { getIsRedisConnected } from "./config/redis.js";
 import authRoutes from "./routes/authRoutes.js";
+import { initAiWorker } from "./workers/aiWorker.js";
+
 import candidateRoutes from "./routes/candidateRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
@@ -22,7 +26,8 @@ const app = express();
 
 connectDB().then(() => {
   repairCandidateAssignments();
-});
+  initAiWorker();
+}); 
 
 // Security Middlewares
 app.use(helmet({
@@ -48,11 +53,21 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/templates", templateRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api/email", emailRoutes);
+// Health Telemetry Endpoint
+app.get("/api/health", (req, res) => {
+
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    mongoDB: mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+    redis: getIsRedisConnected() ? "connected" : "offline",
+  });
+});
 
 app.get("/", (req, res) => {
   res.send("HireTrack API is running...");
 });
+
 
 const PORT = process.env.PORT || 5000;
 

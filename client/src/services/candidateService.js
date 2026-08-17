@@ -219,8 +219,17 @@ const candidateService = {
   anonymizeRawText: async (text) => {
     const response = await axios.post(`${API_URL}/anonymize-text`, { text }, getHeaders());
     return response.data;
+  },
+  runAsyncMatchAnalysis: async (id, jobId = null) => {
+    const response = await axios.post(`${API_URL}/${id}/async-match-analysis`, { jobId }, getHeaders());
+    return response.data;
+  },
+  getJobStatus: async (jobId) => {
+    const response = await axios.get(`${API_URL}/job-status/${jobId}`, getHeaders());
+    return response.data;
   }
 };
 
 export default candidateService;
+
 

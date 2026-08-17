@@ -343,6 +343,13 @@ candidateSchema.index({ userId: 1 });
 candidateSchema.index({ status: 1 });
 candidateSchema.index({ matchScore: -1 });
 
+// High-throughput compound indexes for real query patterns
+candidateSchema.index({ status: 1, isArchived: 1, createdAt: -1 });
+candidateSchema.index({ userId: 1, isArchived: 1 });
+candidateSchema.index({ email: 1 });
+candidateSchema.index({ "matchAnalysis.jobId": 1 });
+
 const Candidate = mongoose.model("Candidate", candidateSchema);
 
 export default Candidate;
+
