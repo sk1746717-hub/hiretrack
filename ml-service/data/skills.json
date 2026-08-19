@@ -1,0 +1,41 @@
+{
+  "programming_languages": [
+    "python", "java", "javascript", "typescript", "c++", "c#", "go", "golang",
+    "rust", "ruby", "php", "swift", "kotlin", "scala", "r", "perl", "sql", "html", "css", "shell", "bash"
+  ],
+  "frameworks": [
+    "react", "react.js", "reactjs", "node.js", "nodejs", "node", "angular", "vue", "vue.js", "next.js", "nuxt.js",
+    "django", "flask", "fastapi", "spring", "spring boot", "express", "express.js",
+    "nestjs", "ruby on rails", "rails", "laravel", "asp.net", ".net", "flutter",
+    "react native", "svelte", "gatsby"
+  ],
+
+  "libraries": [
+    "redux", "pandas", "numpy", "scikit-learn", "sklearn", "tensorflow", "pytorch",
+    "keras", "rxjs", "tailwind", "tailwind css", "bootstrap", "jquery", "scipy",
+    "matplotlib", "seaborn", "axios", "graphql", "prisms"
+  ],
+  "databases": [
+    "mongodb", "postgresql", "postgres", "mysql", "redis", "sqlite", "oracle",
+    "cassandra", "elasticsearch", "dynamodb", "firebase", "firestore", "couchdb",
+    "mariadb", "neo4j"
+  ],
+  "cloud": [
+    "aws", "amazon web services", "azure", "gcp", "google cloud", "google cloud platform",
+    "heroku", "vercel", "digitalocean", "cloudflare", "openstack", "netifying"
+  ],
+  "devops": [
+    "docker", "kubernetes", "k8s", "jenkins", "git", "github", "gitlab", "github actions",
+    "gitlab ci", "terraform", "ansible", "nginx", "prometheus", "grafana", "linux",
+    "unix", "bash", "ci/cd", "helm"
+  ],
+  "tools": [
+    "postman", "jira", "figma", "webpack", "vite", "vs code", "vscode", "bitbucket",
+    "confluence", "swagger", "npm", "yarn", "pip", "docker desktop"
+  ],
+  "ai_ml": [
+    "scikit-learn", "tensorflow", "pytorch", "keras", "opencv", "nltk", "spacy",
+    "huggingface", "transformers", "llm", "rag", "langchain", "groq", "openai",
+    "machine learning", "deep learning", "nlp", "computer vision", "bert", "gpt"
+  ]
+}

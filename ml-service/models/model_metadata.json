@@ -1,0 +1,74 @@
+{
+  "modelName": "HireTrack Candidate Success Predictor",
+  "modelVersion": "1.0.0",
+  "modelType": "RandomForestClassifier",
+  "datasetType": "Synthetic development/demo dataset",
+  "trainedAt": "2026-08-19T09:38:19.612629+00:00",
+  "randomState": 42,
+  "sampleSize": 800,
+  "trainSize": 640,
+  "testSize": 160,
+  "featureColumns": [
+    "skill_match_percentage",
+    "semantic_similarity_percentage",
+    "relevant_experience_years",
+    "interview_score",
+    "assessment_score",
+    "required_skills_matched",
+    "total_required_skills",
+    "skill_gap_percentage"
+  ],
+  "targetColumn": "success",
+  "metrics": {
+    "accuracy": 0.9062,
+    "precision": 0.8148,
+    "recall": 0.6875,
+    "f1Score": 0.7458,
+    "rocAuc": 0.969,
+    "confusionMatrix": [
+      [
+        123,
+        5
+      ],
+      [
+        10,
+        22
+      ]
+    ]
+  },
+  "featureImportances": [
+    {
+      "feature": "skill_match_percentage",
+      "importance": 0.2179
+    },
+    {
+      "feature": "semantic_similarity_percentage",
+      "importance": 0.2041
+    },
+    {
+      "feature": "skill_gap_percentage",
+      "importance": 0.2013
+    },
+    {
+      "feature": "assessment_score",
+      "importance": 0.1447
+    },
+    {
+      "feature": "interview_score",
+      "importance": 0.0814
+    },
+    {
+      "feature": "required_skills_matched",
+      "importance": 0.0685
+    },
+    {
+      "feature": "relevant_experience_years",
+      "importance": 0.062
+    },
+    {
+      "feature": "total_required_skills",
+      "importance": 0.0201
+    }
+  ],
+  "disclaimer": "This prediction model is trained on a synthetic demonstration dataset for development purposes. Real organizational recruitment outcome data is required for production deployment."
+}

@@ -1,0 +1,28 @@
+{
+  "aliases": {
+    "react.js": "React",
+    "reactjs": "React",
+    "node.js": "Node.js",
+    "nodejs": "Node.js",
+    "node": "Node.js",
+    "express.js": "Express.js",
+    "expressjs": "Express.js",
+    "express": "Express.js",
+    "postgres": "PostgreSQL",
+    "postgresql": "PostgreSQL",
+    "k8s": "Kubernetes",
+    "amazon web services": "AWS",
+    "aws": "AWS",
+    "gcp": "Google Cloud (GCP)",
+    "google cloud": "Google Cloud (GCP)",
+    "google cloud platform": "Google Cloud (GCP)",
+    "scikit-learn": "Scikit-Learn",
+    "sklearn": "Scikit-Learn"
+  },
+  "related": {
+    "React": ["Redux", "Next.js", "TypeScript", "JavaScript", "React Native"],
+    "Node.js": ["Express.js", "NestJS", "JavaScript", "TypeScript"],
+    "Python": ["Django", "Flask", "FastAPI", "Pandas", "Scikit-Learn", "NumPy"],
+    "AWS": ["Docker", "Kubernetes", "Terraform", "Cloudflare"]
+  }
+}

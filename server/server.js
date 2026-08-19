@@ -45,6 +45,8 @@ app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
+import mlRoutes from "./routes/mlRoutes.js";
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/candidates", candidateRoutes);
@@ -53,6 +55,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/templates", templateRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/ml", mlRoutes);
+
 // Health Telemetry Endpoint
 app.get("/api/health", (req, res) => {
 

@@ -1,0 +1,38 @@
+JANE DOE
+Email: jane.doe@example.com | Phone: (555) 019-2834 | San Francisco, CA
+LinkedIn: linkedin.com/in/janedoe | GitHub: github.com/janedoe
+
+PROFESSIONAL SUMMARY
+Innovative Senior Full Stack Software Engineer with over 5 years of experience designing and scaling web applications using Python, JavaScript, React, Node.js, and MongoDB. Proven track record in microservices architecture, cloud deployment on AWS, and machine learning integration.
+
+SKILLS
+- Programming Languages: Python, JavaScript, TypeScript, Java, SQL, HTML, CSS
+- Frameworks & Libraries: React, Node.js, Express, Django, FastAPI, Redux, Pandas, Scikit-learn
+- Databases & Cloud: MongoDB, PostgreSQL, Redis, AWS (S3, EC2, Lambda), Docker, Kubernetes
+- Tools & DevOps: Git, GitHub Actions, Jenkins, Postman, Linux, Nginx, Jira
+
+EXPERIENCE
+Senior Software Engineer | Acme Corporation | 2021 – Present
+- Architected RESTful microservices with Node.js, Express, and MongoDB, handling over 1M daily requests.
+- Developed dynamic frontend interfaces in React and Redux, improving user conversion rates by 25%.
+- Implemented CI/CD pipelines using GitHub Actions and deployed containerized services on AWS ECS with Docker.
+
+Full Stack Developer | TechSolutions Inc | 2019 – 2021
+- Built scalable web API endpoints using Python, Django, and PostgreSQL.
+- Integrated third-party payment gateways and state management using Redux and Axios.
+- Conducted unit and integration testing, maintaining 90%+ code coverage.
+
+PROJECTS
+Smart ATS Analyzer | Python, FastAPI, Scikit-learn, React
+- Created an intelligent candidate match scoring engine utilizing TF-IDF cosine similarity and NLP entity extraction.
+
+Real-Time Dashboard | React, Node.js, Socket.io, MongoDB
+- Designed a live analytics dashboard streaming telemetry data for enterprise customers.
+
+EDUCATION
+Master of Science in Computer Science | Stanford University | 2019
+Bachelor of Science in Software Engineering | University of California, Berkeley | 2017
+
+CERTIFICATIONS
+- AWS Certified Solutions Architect – Associate
+- Certified ScrumMaster (CSM)

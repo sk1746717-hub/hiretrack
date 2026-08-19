@@ -5,7 +5,9 @@ import { useAuth } from "../context/AuthContext";
 import candidateService from "../services/candidateService";
 import authService from "../services/authService";
 import templateService from "../services/templateService";
+import mlService from "../services/mlService";
 import Loader from "../components/Loader";
+
 import CandidateForm from "../components/CandidateForm";
 import InterviewKitModal from "../components/InterviewKitModal";
 
@@ -125,6 +127,57 @@ const CandidateDetails = () => {
   const [runningMatchAnalysis, setRunningMatchAnalysis] = useState(false);
   const [generatingKit, setGeneratingKit] = useState(false);
   const [showKitModal, setShowKitModal] = useState(false);
+
+  // Phase 8 AIML Module Integration State
+  const [aimlSubTab, setAimlSubTab] = useState("insights"); // "insights" | "match" | "skillGap" | "prediction" | "interview"
+  const [aimlData, setAimlData] = useState({
+    insights: null,
+    match: null,
+    skillGap: null,
+    prediction: null,
+    interview: null,
+  });
+  const [aimlLoading, setAimlLoading] = useState(false);
+  const [aimlError, setAimlError] = useState("");
+
+  const loadAimlModule = async (key) => {
+    try {
+      setAimlLoading(true);
+      setAimlError("");
+      let res;
+      if (key === "insights") {
+        res = await mlService.analyzeResume({ candidateId: id });
+      } else if (key === "match") {
+        res = await mlService.matchCandidate({ candidateId: id });
+      } else if (key === "skillGap") {
+        res = await mlService.analyzeSkillGap({ candidateId: id });
+      } else if (key === "prediction") {
+        res = await mlService.predictSuccess({ candidateId: id });
+      } else if (key === "interview") {
+        res = await mlService.analyzeInterview({ candidateId: id });
+      }
+
+      if (res && res.error) {
+        setAimlError("AIML service is currently unavailable. Existing HireTrack functionality is still available.");
+      } else if (res && res.success !== false) {
+        setAimlData((prev) => ({ ...prev, [key]: res }));
+      } else {
+        setAimlError("AIML service is currently unavailable. Existing HireTrack functionality is still available.");
+      }
+    } catch (err) {
+      console.error(`AIML ${key} fetch error:`, err);
+      setAimlError("AIML service is currently unavailable. Existing HireTrack functionality is still available.");
+    } finally {
+      setAimlLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "aiml") {
+      loadAimlModule(aimlSubTab);
+    }
+  }, [activeTab, aimlSubTab, id]);
+
 
   const handleRunMatchAnalysis = async () => {
     try {
@@ -750,7 +803,7 @@ const CandidateDetails = () => {
 
       {/* Tabs list */}
       <div className="flex border-b border-slate-850 gap-2 print:hidden">
-        {["overview", "scorecards", "questions", "documents"].map((tab) => (
+        {["overview", "aiml", "scorecards", "questions", "documents"].map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -760,12 +813,296 @@ const CandidateDetails = () => {
                 : "border-transparent text-slate-400 hover:text-white"
             }`}
           >
-            {tab}
+            {tab === "aiml" ? "AI / ML Insights" : tab}
           </button>
         ))}
       </div>
 
+      {/* TAB CONTENT: AIML Insights */}
+      {activeTab === "aiml" && (
+        <div className="space-y-6">
+          {/* Sub-tab navigation bar */}
+          <div className="flex flex-wrap gap-2 p-1.5 rounded-xl border border-slate-850 bg-slate-900/40 backdrop-blur-sm">
+            {[
+              { key: "insights", label: "AI Resume Insights" },
+              { key: "match", label: "Semantic Match" },
+              { key: "skillGap", label: "Skill Gap Analysis" },
+              { key: "prediction", label: "ML Suitability" },
+              { key: "interview", label: "Interview Intelligence" },
+            ].map((sub) => (
+              <button
+                key={sub.key}
+                onClick={() => setAimlSubTab(sub.key)}
+                className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  aimlSubTab === sub.key
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20"
+                    : "bg-slate-950/40 text-slate-400 hover:text-white hover:bg-slate-850"
+                }`}
+              >
+                {sub.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Loading Indicator */}
+          {aimlLoading && (
+            <div className="p-8 rounded-2xl border border-slate-850 bg-slate-900/40 text-center space-y-3">
+              <div className="inline-block animate-spin h-7 w-7 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+              <p className="text-xs text-slate-400 font-semibold animate-pulse">
+                Analyzing AIML models...
+              </p>
+            </div>
+          )}
+
+          {/* Offline / Service Error Banner */}
+          {aimlError && !aimlLoading && (
+            <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs font-semibold flex items-center justify-between gap-4">
+              <span>⚠️ {aimlError}</span>
+              <button
+                onClick={() => loadAimlModule(aimlSubTab)}
+                className="px-3 py-1 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-bold"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* 1. AI Resume Insights Subtab */}
+          {aimlSubTab === "insights" && !aimlLoading && aimlData.insights?.analysis && (
+            <div className="space-y-6">
+              <div className="p-5 rounded-2xl border border-slate-850 bg-slate-900/40 space-y-4">
+                <div className="flex justify-between items-center border-b border-slate-850 pb-3">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Extracted Technical Skills</h3>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-400 font-bold uppercase">
+                    {aimlData.insights.analysis.processingMethod || "NLP Taxonomy"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {Object.entries(aimlData.insights.analysis.skills || {}).map(([catKey, skillsArr]) => (
+                    skillsArr && skillsArr.length > 0 && (
+                      <div key={catKey} className="p-3.5 rounded-xl border border-slate-850 bg-slate-950/40 space-y-2">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          {catKey.replace(/([A-Z])/g, " $1")}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {skillsArr.map((sk, i) => (
+                            <span key={i} className="text-[10px] px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-300 font-semibold">
+                              {sk}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
+
+              {/* Education & Experience */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-5 rounded-2xl border border-slate-850 bg-slate-900/40 space-y-3">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-850 pb-2">Education & Degrees</h3>
+                  {(aimlData.insights.analysis.education || []).length > 0 ? (
+                    aimlData.insights.analysis.education.map((edu, i) => (
+                      <div key={i} className="p-3 rounded-xl border border-slate-850 bg-slate-950/40 space-y-1 text-xs">
+                        <div className="font-bold text-white">{edu.degree}</div>
+                        <div className="text-slate-400">{edu.institution} {edu.graduationYear ? `(${edu.graduationYear})` : ""}</div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-500 italic">No formal education section extracted.</p>
+                  )}
+                </div>
+
+                <div className="p-5 rounded-2xl border border-slate-850 bg-slate-900/40 space-y-3">
+                  <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-850 pb-2">Extracted Certifications</h3>
+                  {(aimlData.insights.analysis.certifications || []).length > 0 ? (
+                    aimlData.insights.analysis.certifications.map((cert, i) => (
+                      <div key={i} className="p-2.5 rounded-xl border border-slate-850 bg-slate-950/40 text-xs font-semibold text-emerald-400 flex items-center gap-2">
+                        <span>✓</span> {cert}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-slate-500 italic">No certifications detected.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 2. AI Match Analysis Subtab */}
+          {aimlSubTab === "match" && !aimlLoading && aimlData.match?.success && (
+            <div className="p-6 rounded-2xl border border-slate-850 bg-slate-900/40 space-y-6">
+              <div className="flex flex-wrap justify-between items-center border-b border-slate-850 pb-4 gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white">TF-IDF Semantic Candidate Match Analysis</h3>
+                  <p className="text-xs text-slate-400">Deterministic scoring model combining TF-IDF cosine similarity and skill set overlap.</p>
+                </div>
+                <span className="text-xs px-3 py-1 rounded-full font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                  {aimlData.match.recommendation}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-4 rounded-xl border border-slate-850 bg-slate-950/40 text-center space-y-1">
+                  <div className="text-3xl font-extrabold text-blue-400">{aimlData.match.matchScore}%</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Overall Match Score</div>
+                </div>
+                <div className="p-4 rounded-xl border border-slate-850 bg-slate-950/40 text-center space-y-1">
+                  <div className="text-3xl font-extrabold text-teal-400">{aimlData.match.skillMatchPercentage}%</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Skill Match %</div>
+                </div>
+                <div className="p-4 rounded-xl border border-slate-850 bg-slate-950/40 text-center space-y-1">
+                  <div className="text-3xl font-extrabold text-purple-400">{aimlData.match.semanticSimilarityPercentage}%</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">TF-IDF Cosine Similarity</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider">✓ Matched Required Skills ({aimlData.match.matchedSkills?.length || 0})</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(aimlData.match.matchedSkills || []).map((sk, i) => (
+                      <span key={i} className="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-semibold">
+                        {sk}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-rose-400 uppercase tracking-wider">⚠ Missing Skills ({aimlData.match.missingSkills?.length || 0})</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(aimlData.match.missingSkills || []).map((sk, i) => (
+                      <span key={i} className="text-xs px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 font-semibold">
+                        {sk}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 3. Skill Gap Subtab */}
+          {aimlSubTab === "skillGap" && !aimlLoading && aimlData.skillGap?.success && (
+            <div className="p-6 rounded-2xl border border-slate-850 bg-slate-900/40 space-y-6">
+              <div className="flex justify-between items-center border-b border-slate-850 pb-4">
+                <h3 className="text-lg font-bold text-white">AI Skill Gap Analysis</h3>
+                <div className="text-xs text-slate-400">
+                  Coverage: <strong className="text-teal-400">{aimlData.skillGap.skillMatchPercentage}%</strong> | Gap: <strong className="text-rose-400">{aimlData.skillGap.skillGapPercentage}%</strong>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="text-xs font-bold text-slate-300 uppercase tracking-wider">Missing Required Skills & Priority</div>
+                <div className="space-y-2">
+                  {(aimlData.skillGap.missingSkills || []).map((item, i) => (
+                    <div key={i} className="p-3 rounded-xl border border-slate-850 bg-slate-950/40 flex justify-between items-center text-xs">
+                      <span className="font-semibold text-slate-200">{item.skill}</span>
+                      <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                        item.priority === "High" ? "bg-rose-500/20 text-rose-300 border border-rose-500/30" : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                      }`}>
+                        {item.priority} Priority Gap
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 4. ML Candidate Suitability Subtab */}
+          {aimlSubTab === "prediction" && !aimlLoading && aimlData.prediction?.success && (
+            <div className="p-6 rounded-2xl border border-slate-850 bg-slate-900/40 space-y-6">
+              <div className="flex justify-between items-center border-b border-slate-850 pb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white">ML Candidate Suitability Estimate</h3>
+                  <p className="text-xs text-slate-400">Scikit-Learn RandomForestClassifier inference prediction.</p>
+                </div>
+                <span className="text-xs px-3 py-1 rounded-full font-bold bg-purple-500/15 border border-purple-500/30 text-purple-300">
+                  {aimlData.prediction.suitabilityLevel}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-5 rounded-xl border border-slate-850 bg-slate-950/40 space-y-3">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Predicted Success Probability</div>
+                  <div className="text-4xl font-extrabold text-blue-400">{aimlData.prediction.successProbabilityPercentage}%</div>
+                  <div className="text-[10px] text-slate-500">Model Confidence: {aimlData.prediction.confidence}</div>
+                </div>
+
+                <div className="p-5 rounded-xl border border-slate-850 bg-slate-950/40 space-y-3">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Top Machine Learning Feature Importances</div>
+                  <div className="space-y-1.5 text-xs">
+                    {(aimlData.prediction.featureImportances || []).slice(0, 4).map((f, i) => (
+                      <div key={i} className="flex justify-between items-center text-slate-300">
+                        <span>{f.feature.replace(/_/g, " ")}</span>
+                        <span className="font-mono text-blue-400">{(f.importance * 100).toFixed(1)}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-300/90 text-xs space-y-1">
+                <div className="font-bold">📌 Synthetic Dataset Disclaimer</div>
+                <p className="text-[11px] leading-relaxed">{aimlData.prediction.disclaimer}</p>
+              </div>
+            </div>
+          )}
+
+          {/* 5. AI Interview Intelligence Subtab */}
+          {aimlSubTab === "interview" && !aimlLoading && aimlData.interview?.success && (
+            <div className="p-6 rounded-2xl border border-slate-850 bg-slate-900/40 space-y-6">
+              <div className="flex justify-between items-center border-b border-slate-850 pb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white">AI Interview Intelligence Evaluation</h3>
+                  <p className="text-xs text-slate-400">Multi-factor rubric analysis & text feedback evaluation.</p>
+                </div>
+                <span className="text-xs px-3 py-1 rounded-full font-bold bg-teal-500/15 border border-teal-500/30 text-teal-300">
+                  {aimlData.interview.recommendation}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-4 rounded-xl border border-slate-850 bg-slate-950/40 text-center space-y-1">
+                  <div className="text-3xl font-extrabold text-teal-400">{aimlData.interview.overallInterviewScore}%</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Overall Interview Score</div>
+                </div>
+                <div className="p-4 rounded-xl border border-slate-850 bg-slate-950/40 text-center space-y-1">
+                  <div className="text-2xl font-extrabold text-purple-400">{aimlData.interview.technicalCompetencyLevel}</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Technical Competency Level</div>
+                </div>
+                <div className="p-4 rounded-xl border border-slate-850 bg-slate-950/40 text-center space-y-1">
+                  <div className="text-3xl font-extrabold text-blue-400">{aimlData.interview.skillCoveragePercentage}%</div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Interview Skill Coverage</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Strengths Identified</div>
+                  <ul className="list-disc list-inside space-y-1 text-xs text-slate-300">
+                    {(aimlData.interview.strengths || []).map((s, i) => (
+                      <li key={i}>{s}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-bold text-rose-400 uppercase tracking-wider">Weaknesses / Gaps Identified</div>
+                  <ul className="list-disc list-inside space-y-1 text-xs text-slate-300">
+                    {(aimlData.interview.weaknesses || []).map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* TAB CONTENT: Overview */}
+
       {activeTab === "overview" && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

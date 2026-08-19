@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import jobService from "../services/jobService";
 import authService from "../services/authService";
 import { useAuth } from "../context/AuthContext";
+import mlService from "../services/mlService";
 import toast from "react-hot-toast";
 
 const Jobs = () => {
@@ -10,6 +11,35 @@ const Jobs = () => {
   const [recruiters, setRecruiters] = useState([]);
   const [interviewers, setInterviewers] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // AI Ranking Modal State
+  const [rankingModalJob, setRankingModalJob] = useState(null);
+  const [rankingData, setRankingData] = useState(null);
+  const [rankingLoading, setRankingLoading] = useState(false);
+  const [rankingError, setRankingError] = useState("");
+
+  const handleOpenRanking = async (job) => {
+    setRankingModalJob(job);
+    setRankingData(null);
+    setRankingError("");
+    try {
+      setRankingLoading(true);
+      const res = await mlService.rankCandidates({ jobId: job._id });
+      if (res && res.error) {
+        setRankingError("AIML service is currently unavailable. Existing HireTrack functionality is still available.");
+      } else if (res && res.success) {
+        setRankingData(res);
+      } else {
+        setRankingError("AIML service is currently unavailable. Existing HireTrack functionality is still available.");
+      }
+    } catch (err) {
+      console.error("Fetch candidate ranking error:", err);
+      setRankingError("AIML service is currently unavailable. Existing HireTrack functionality is still available.");
+    } finally {
+      setRankingLoading(false);
+    }
+  };
+
   
   // Filtering & Pagination state
   const [search, setSearch] = useState("");
@@ -303,22 +333,31 @@ const Jobs = () => {
                   )}
                 </div>
 
-                {isWriteAllowed && (
-                  <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => handleOpenEditModal(job)}
-                      className="text-xs text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteJob(job._id)}
-                      className="text-xs text-red-400 hover:text-red-300 font-semibold cursor-pointer"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleOpenRanking(job)}
+                    className="text-xs px-2.5 py-1 rounded-lg bg-blue-600/20 border border-blue-500/30 text-blue-300 hover:bg-blue-600/30 font-semibold cursor-pointer transition-all"
+                  >
+                    AI Rank
+                  </button>
+                  {isWriteAllowed && (
+                    <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleOpenEditModal(job)}
+                        className="text-xs text-blue-400 hover:text-blue-300 font-semibold cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteJob(job._id)}
+                        className="text-xs text-red-400 hover:text-red-300 font-semibold cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
           ))}
@@ -544,8 +583,105 @@ const Jobs = () => {
           </div>
         </div>
       )}
+
+      {/* AI Candidate Ranking Modal */}
+      {rankingModalJob && (
+
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full p-6 space-y-6 shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white">AI Candidate Ranking — {rankingModalJob.title}</h3>
+                <p className="text-xs text-slate-400">Deterministic candidate ranking using TF-IDF semantic fit and skill match overlap.</p>
+              </div>
+              <button
+                onClick={() => setRankingModalJob(null)}
+                className="text-slate-400 hover:text-white text-lg font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {rankingLoading && (
+              <div className="p-8 text-center space-y-3">
+                <div className="inline-block animate-spin h-7 w-7 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                <p className="text-xs text-slate-400 font-semibold animate-pulse">
+                  Ranking candidates with Python AIML engine...
+                </p>
+              </div>
+            )}
+
+            {rankingError && !rankingLoading && (
+              <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs font-semibold">
+                ⚠️ {rankingError}
+              </div>
+            )}
+
+            {rankingData && !rankingLoading && rankingData.success && (
+              <div className="space-y-6">
+                {/* Ranking Statistics */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-xl border border-slate-850 bg-slate-950/40 text-center">
+                    <div className="text-2xl font-extrabold text-blue-400">{rankingData.statistics.totalCandidates}</div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase">Total Candidates</div>
+                  </div>
+                  <div className="p-3 rounded-xl border border-slate-850 bg-slate-950/40 text-center">
+                    <div className="text-2xl font-extrabold text-teal-400">{rankingData.statistics.averageMatchScore}%</div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase">Avg Match Score</div>
+                  </div>
+                  <div className="p-3 rounded-xl border border-slate-850 bg-slate-950/40 text-center">
+                    <div className="text-2xl font-extrabold text-emerald-400">{rankingData.statistics.highestMatchScore}%</div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase">Top Match Score</div>
+                  </div>
+                  <div className="p-3 rounded-xl border border-slate-850 bg-slate-950/40 text-center">
+                    <div className="text-2xl font-extrabold text-purple-400">{rankingData.statistics.strongMatches + rankingData.statistics.goodMatches}</div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase">Qualified Candidates</div>
+                  </div>
+                </div>
+
+                {/* Ranked List */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">Ranked Candidate List</h4>
+                  {rankingData.rankedCandidates.length === 0 ? (
+                    <p className="text-xs text-slate-500 italic">No active candidates found for this job opening.</p>
+                  ) : (
+                    rankingData.rankedCandidates.map((cand) => (
+                      <div key={cand.candidateId} className="p-4 rounded-xl border border-slate-850 bg-slate-950/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-xs">
+                        <div className="flex items-center gap-3">
+                          <span className={`h-8 w-8 rounded-full flex items-center justify-center font-extrabold text-sm ${
+                            cand.rank === 1 ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" :
+                            cand.rank === 2 ? "bg-slate-300/20 text-slate-200 border border-slate-400/40" :
+                            cand.rank === 3 ? "bg-amber-700/20 text-amber-500 border border-amber-700/40" :
+                            "bg-slate-850 text-slate-400 border border-slate-800"
+                          }`}>
+                            #{cand.rank}
+                          </span>
+                          <div>
+                            <div className="font-bold text-white text-sm">{cand.candidateName}</div>
+                            <div className="text-slate-400 text-[11px]">
+                              Skill Match: <span className="text-teal-400 font-semibold">{cand.skillMatchPercentage}%</span> | Semantic Similarity: <span className="text-purple-400 font-semibold">{cand.semanticSimilarityPercentage}%</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+                          <span className="text-lg font-extrabold text-blue-400">{cand.matchScore}%</span>
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/10 border border-blue-500/20 text-blue-300">
+                            {cand.recommendation}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
 
 export default Jobs;
