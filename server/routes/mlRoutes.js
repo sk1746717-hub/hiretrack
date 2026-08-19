@@ -1,12 +1,40 @@
+import fs from "fs/promises";
+import fsSync from "fs";
+import path from "path";
 import express from "express";
 import { protect } from "../middleware/authMiddleware.js";
 import Candidate from "../models/Candidate.js";
 import Job from "../models/Job.js";
 import * as mlService from "../services/mlService.js";
+import { parsePdfBuffer } from "../utils/pdfParser.js";
 
 const router = express.Router();
 
 router.use(protect);
+
+/**
+ * Resolves a relative or local resume URL path to an absolute filesystem path.
+ */
+const resolveLocalResumePath = (urlPath) => {
+  if (!urlPath) return null;
+
+  // Strip leading slashes or backslashes
+  const cleanRelPath = urlPath.replace(/^[/\\]+/, "");
+
+  // Candidate filesystem locations
+  const candidatePaths = [
+    path.join(process.cwd(), cleanRelPath),
+    path.join(process.cwd(), "server", cleanRelPath),
+  ];
+
+  for (const p of candidatePaths) {
+    if (fsSync.existsSync(p)) {
+      return p;
+    }
+  }
+
+  return candidatePaths[0];
+};
 
 // GET /api/ml/health — Check Python AIML Service health
 router.get("/health", async (req, res) => {
@@ -19,18 +47,98 @@ router.post("/analyze-resume", async (req, res) => {
   try {
     let { resumeText, candidateId } = req.body || {};
 
+    // If candidateId is provided, extract text from the actual uploaded resume PDF
     if (!resumeText && candidateId) {
       const candidate = await Candidate.findById(candidateId);
-      if (candidate) {
-        resumeText = `${candidate.fullName} Skills: ${candidate.skills.join(", ")}; Experience: ${candidate.experience}; Notes: ${candidate.notes}`;
+
+      if (!candidate) {
+        return res.status(404).json({
+          message: "Candidate not found.",
+        });
+      }
+
+      // Prefer the actual uploaded resume file or remote URL
+      if (candidate.resumeUrl) {
+        try {
+          console.log(
+            `[AI Resume Analysis] Downloading resume: ${candidate.resumeFileName || "Resume"}`
+          );
+
+          let buffer;
+
+          // Check if candidate.resumeUrl is a remote HTTP/HTTPS URL (e.g. Cloudinary)
+          if (/^https?:\/\//i.test(candidate.resumeUrl)) {
+            console.log(`[AI Resume Analysis] Downloading remote resume: ${candidate.resumeUrl}`);
+            const response = await fetch(candidate.resumeUrl);
+
+            if (!response.ok) {
+              throw new Error(`Failed to download remote resume: HTTP ${response.status}`);
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            buffer = Buffer.from(arrayBuffer);
+          } else {
+            // Local filesystem path (e.g., "/uploads/...", "uploads/...")
+            const localPath = resolveLocalResumePath(candidate.resumeUrl);
+
+            if (!fsSync.existsSync(localPath)) {
+              console.error(`[AI Resume Analysis] Uploaded resume file is missing on server disk: ${localPath}`);
+              return res.status(400).json({
+                message: "Uploaded resume file is missing on server disk.",
+                expectedPath: localPath,
+                resumeUrl: candidate.resumeUrl,
+              });
+            }
+
+            console.log(`[AI Resume Analysis] Reading local resume: ${localPath}`);
+            buffer = await fs.readFile(localPath);
+          }
+
+          // Use existing parsePdfBuffer from pdfParser.js (pdfjs-dist)
+          const extractedText = await parsePdfBuffer(buffer);
+          resumeText = extractedText?.trim() || "";
+
+          console.log(
+            `[AI Resume Analysis] PDF text extracted successfully. Character count: ${resumeText.length}`
+          );
+        } catch (pdfError) {
+          console.error(
+            "[AI Resume Analysis] PDF extraction failed:",
+            pdfError.message
+          );
+
+          return res.status(400).json({
+            message: "Unable to extract text from the uploaded resume.",
+            error: pdfError.message,
+          });
+        }
+      }
+
+      // Fallback if candidate has no uploaded resume or extraction produced empty text
+      if (!resumeText) {
+        resumeText = `
+          ${candidate.fullName || ""}
+          Skills: ${(candidate.skills || []).join(", ")}
+          Experience: ${candidate.experience || ""}
+          Notes: ${candidate.notes || ""}
+        `.trim();
+
+        console.log(
+          "[AI Resume Analysis] No uploaded resume found or empty text. Using candidate profile data."
+        );
       }
     }
 
     if (!resumeText) {
-      return res.status(400).json({ message: "resumeText or candidateId is required." });
+      return res.status(400).json({
+        message: "resumeText or candidateId is required.",
+      });
     }
 
+    console.log("[AI Resume Analysis] Sending resume text to Python NLP service...");
+
     const result = await mlService.analyzeResume(resumeText);
+
     if (!result.success && result.error) {
       return res.status(503).json(result);
     }
@@ -38,7 +146,11 @@ router.post("/analyze-resume", async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error("Express ML analyze-resume error:", error.message);
-    res.status(500).json({ message: "Server error performing resume analysis", error: error.message });
+
+    res.status(500).json({
+      message: "Server error performing resume analysis",
+      error: error.message,
+    });
   }
 });
 
@@ -50,8 +162,30 @@ router.post("/match-candidate", async (req, res) => {
     if (candidateId) {
       const dbCand = await Candidate.findById(candidateId);
       if (dbCand) {
+        let resumeText = `${dbCand.fullName} ${dbCand.skills.join(" ")} ${dbCand.experience} ${dbCand.notes}`;
+
+        // Attempt PDF text extraction if resumeUrl exists
+        if (dbCand.resumeUrl) {
+          try {
+            let buffer;
+            if (/^https?:\/\//i.test(dbCand.resumeUrl)) {
+              const resp = await fetch(dbCand.resumeUrl);
+              if (resp.ok) buffer = Buffer.from(await resp.arrayBuffer());
+            } else {
+              const localPath = resolveLocalResumePath(dbCand.resumeUrl);
+              if (fsSync.existsSync(localPath)) buffer = await fs.readFile(localPath);
+            }
+            if (buffer) {
+              const parsedText = await parsePdfBuffer(buffer);
+              if (parsedText && parsedText.trim()) resumeText = parsedText.trim();
+            }
+          } catch (e) {
+            console.warn("[ML Match] PDF text extraction fallback to candidate profile:", e.message);
+          }
+        }
+
         candidate = {
-          resumeText: `${dbCand.fullName} ${dbCand.skills.join(" ")} ${dbCand.experience} ${dbCand.notes}`,
+          resumeText,
           skills: dbCand.skills || [],
         };
         if (!jobId && dbCand.jobId) jobId = dbCand.jobId;
@@ -133,8 +267,29 @@ router.post("/skill-gap", async (req, res) => {
     if (candidateId) {
       const dbCand = await Candidate.findById(candidateId);
       if (dbCand) {
+        let resumeText = `${dbCand.fullName} ${dbCand.skills.join(" ")} ${dbCand.experience} ${dbCand.notes}`;
+
+        if (dbCand.resumeUrl) {
+          try {
+            let buffer;
+            if (/^https?:\/\//i.test(dbCand.resumeUrl)) {
+              const resp = await fetch(dbCand.resumeUrl);
+              if (resp.ok) buffer = Buffer.from(await resp.arrayBuffer());
+            } else {
+              const localPath = resolveLocalResumePath(dbCand.resumeUrl);
+              if (fsSync.existsSync(localPath)) buffer = await fs.readFile(localPath);
+            }
+            if (buffer) {
+              const parsedText = await parsePdfBuffer(buffer);
+              if (parsedText && parsedText.trim()) resumeText = parsedText.trim();
+            }
+          } catch (e) {
+            console.warn("[ML Skill Gap] PDF text extraction fallback:", e.message);
+          }
+        }
+
         candidate = {
-          resumeText: `${dbCand.fullName} ${dbCand.skills.join(" ")} ${dbCand.experience} ${dbCand.notes}`,
+          resumeText,
           skills: dbCand.skills || [],
         };
         if (!jobId && dbCand.jobId) jobId = dbCand.jobId;
@@ -192,7 +347,7 @@ router.post("/predict-success", async (req, res) => {
           interviewScore: dbCand.candidateRating ? dbCand.candidateRating * 20.0 : 75.0,
           assessmentScore: matchRes.matchScore || 75.0,
           requiredSkillsMatched: matchRes.matchedSkills?.length || 3,
-          totalRequiredSkills: (dbJob.requiredSkills?.length) || 4,
+          totalRequiredSkills: dbJob.requiredSkills?.length || 4,
           skillGapPercentage: 100.0 - (matchRes.skillMatchPercentage || 75.0),
         };
       }

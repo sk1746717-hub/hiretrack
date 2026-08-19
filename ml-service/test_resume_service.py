@@ -14,8 +14,8 @@ PROFESSIONAL SUMMARY
 Senior Full Stack Engineer with 5+ years experience in Python, Java, React, Node.js, MongoDB, and AWS.
 
 SKILLS
-Programming Languages: Java, Python, JavaScript, TypeScript
-Frameworks & Cloud: React, Node.js, Express, MongoDB, AWS, Docker
+Programming Languages: Java, Python, JavaScript, TypeScript, HTML5, CSS3
+Frameworks & Cloud: React, Node.js, Express, MongoDB, AWS, Docker, Chart.js, Tailwind CSS
 
 EXPERIENCE
 Senior Software Engineer | Acme Corporation | 2021 – Present
@@ -33,13 +33,47 @@ CERTIFICATIONS
 - Certified ScrumMaster (CSM)
 """
 
+REAL_RESUME_FORMAT_TEXT = """
+SAM K.
+Email: sam@example.com | Phone: 9876543210
+Location: Bengaluru, India
+
+PROFESSIONAL SUMMARY
+Final-year B.Tech CSE student at CMR University (CGPA 8.5/10) with hands-on experience in full stack web development using Java Spring Boot, React, and Python.
+
+TECHNICAL SKILLS
+- Languages: JavaScript, Python, Java, HTML5, CSS3, SQL
+- Frameworks / Tools: React, Spring Boot, FastAPI, Tailwind CSS, Chart.js, Postman, Git, GitHub
+- AI / APIs: Anthropic Claude API, Groq API, Gemini API, REST API Design, LLM Integration
+- Databases: MySQL, MongoDB Atlas
+
+WORK EXPERIENCE
+YBI Foundation — Virtual Intern — AI & ML Track 06/2024 – 08/2024
+- Completed structured training in Python programming and AI/ML fundamentals over 2 months.
+- Built House Price Prediction System as the capstone — an end-to-end ML pipeline evaluated using RMSE.
+
+PROJECTS
+InterviewIQ — AI-Powered Interview Preparation Platform
+Tech Stack: Java Spring Boot, React, MySQL, JWT Authentication
+
+EDUCATION
+CMR University, Bengaluru 2023 – 2027
+B.Tech — Computer Science & Engineering | CGPA: 8.5 / 10
+Gangothri PU College, Kolar Mar 2022
+Class XII — PCMB | Score: 89%
+
+CERTIFICATIONS / ACHIEVEMENTS
+- Google Cloud Computing Foundations — Google Cloud / NPTEL
+- Infosys Springboard 6.0 Internship — AI & Python Track
+- Web Development Bootcamp — Udemy
+"""
+
 class TestResumeIntelligenceService(unittest.TestCase):
 
     def test_1_technical_resume_skills(self):
         result = analyze_resume(SAMPLE_RESUME_TEXT)
         skills = result["skills"]
         
-        # Check programming languages & frameworks
         all_found = []
         for cat in skills.values():
             all_found.extend(cat)
@@ -104,6 +138,61 @@ class TestResumeIntelligenceService(unittest.TestCase):
         self.assertTrue(data["success"])
         self.assertIn("analysis", data)
         print("[OK] Test 8 — FastAPI endpoint POST /analyze-resume integration passed")
+
+    def test_9_btech_education_extraction(self):
+        result = analyze_resume(REAL_RESUME_FORMAT_TEXT)
+        education = result["education"]
+        self.assertTrue(len(education) >= 2)
+        btech = next((ed for ed in education if "B.Tech" in ed["degree"] or "Bachelor of Technology" in ed["degree"]), None)
+        self.assertIsNotNone(btech, "B.Tech degree was not recognized!")
+        self.assertEqual(btech["institution"], "CMR University")
+        print("[OK] Test 9 — B.Tech & CMR University clean education extraction passed")
+
+    def test_10_class_xii_education_extraction(self):
+        result = analyze_resume(REAL_RESUME_FORMAT_TEXT)
+        education = result["education"]
+        class_12 = next((ed for ed in education if "Class XII" in ed["degree"] or "Higher Secondary" in ed["degree"]), None)
+        self.assertIsNotNone(class_12, "Class XII education entry was not recognized!")
+        self.assertEqual(class_12["graduationYear"], "2022")
+        print("[OK] Test 10 — Class XII / 12th education extraction passed")
+
+    def test_11_certifications_achievements_extraction(self):
+        result = analyze_resume(REAL_RESUME_FORMAT_TEXT)
+        certs = result["certifications"]
+        self.assertTrue(len(certs) >= 2, f"Certifications extracted: {certs}")
+        self.assertTrue(any("Google Cloud" in c or "Infosys" in c or "Udemy" in c for c in certs))
+        print("[OK] Test 11 — Certifications and achievements clean extraction passed")
+
+    def test_12_html5_css3_chartjs_detection(self):
+        result = analyze_resume(REAL_RESUME_FORMAT_TEXT)
+        skills = result["skills"]
+        all_skills = []
+        for cat in skills.values():
+            all_skills.extend(cat)
+
+        self.assertIn("HTML5", all_skills)
+        self.assertIn("CSS3", all_skills)
+        self.assertIn("Chart.js", all_skills)
+        self.assertIn("Tailwind CSS", all_skills)
+        print("[OK] Test 12 — HTML5, CSS3, Chart.js, Tailwind CSS skill extraction passed")
+
+    def test_13_no_professional_summary_in_education(self):
+        result = analyze_resume(REAL_RESUME_FORMAT_TEXT)
+        education = result["education"]
+        for ed in education:
+            self.assertNotIn("PROFESSIONAL SUMMARY", ed["institution"])
+            self.assertNotIn("Bengaluru, India", ed["institution"])
+            self.assertNotIn("Final-year B.Tech", ed["institution"])
+        print("[OK] Test 13 — No PROFESSIONAL SUMMARY pollution in education passed")
+
+    def test_14_no_project_descriptions_in_certifications(self):
+        result = analyze_resume(REAL_RESUME_FORMAT_TEXT)
+        certs = result["certifications"]
+        for cert in certs:
+            self.assertNotIn("Completed structured training", cert)
+            self.assertNotIn("House Price Prediction System", cert)
+            self.assertNotIn("capstone", cert.lower())
+        print("[OK] Test 14 — No project descriptions in certifications passed")
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,7 +1,7 @@
 {
   "programming_languages": [
     "python", "java", "javascript", "typescript", "c++", "c#", "go", "golang",
-    "rust", "ruby", "php", "swift", "kotlin", "scala", "r", "perl", "sql", "html", "css", "shell", "bash"
+    "rust", "ruby", "php", "swift", "kotlin", "scala", "r", "perl", "sql", "html", "html5", "css", "css3", "shell", "bash"
   ],
   "frameworks": [
     "react", "react.js", "reactjs", "node.js", "nodejs", "node", "angular", "vue", "vue.js", "next.js", "nuxt.js",
@@ -12,9 +12,10 @@
 
   "libraries": [
     "redux", "pandas", "numpy", "scikit-learn", "sklearn", "tensorflow", "pytorch",
-    "keras", "rxjs", "tailwind", "tailwind css", "bootstrap", "jquery", "scipy",
-    "matplotlib", "seaborn", "axios", "graphql", "prisms"
+    "keras", "rxjs", "tailwind", "tailwind css", "tailwindcss", "bootstrap", "jquery", "scipy",
+    "matplotlib", "seaborn", "axios", "graphql", "prisms", "chart.js", "chartjs"
   ],
+
   "databases": [
     "mongodb", "postgresql", "postgres", "mysql", "redis", "sqlite", "oracle",
     "cassandra", "elasticsearch", "dynamodb", "firebase", "firestore", "couchdb",
